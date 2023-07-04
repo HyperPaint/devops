@@ -1,0 +1,74 @@
+String hosts = params.hosts
+String ports = params.ports
+
+Boolean shReturnStatus(String cmd) {
+    assert cmd instanceof String
+    Boolean result = sh(script: cmd, returnStatus: true) == 0
+    return result
+}
+
+String shReturnStdout(String cmd) {
+    assert cmd instanceof String
+    String result = sh(script: cmd, returnStdout: true).trim()
+    return result
+}
+
+// Активные хосты
+ArrayList<String> activeHosts = new ArrayList<>()
+
+pipeline {
+    agent any
+    stages {
+        stage('Ping') {
+            steps {
+                echo 'Проверяю доступность хоста...'
+                script {
+                    // Преобразование
+                    ArrayList<String> allHosts = new ArrayList<>()
+                    allHosts.addAll(hosts.split(',\\s*'))
+                    // Проверка доступности
+                    String host
+                    int size = allHosts.size()
+                    for (int i = 0; i < size; i++) {
+                        host = allHosts.get(i)
+                        echo "Проверка хоста ${host}"
+                        if (shReturnStatus("ping -q -c 1 ${host}")) {
+                            echo "Хост ${host} доступен"
+                            activeHosts.add(host)
+                        } else {
+                            echo "Хост ${host} не доступен"
+                        }
+                    }
+                    // Если нет доступных, завершить
+                    if (activeHosts.isEmpty()) {
+                        currentBuild.result = 'ABORTED'
+                        error "Нет доступных хостов"
+                    }
+                }
+            }
+        }
+        stage('Port') {
+            steps {
+                echo 'Проверяю доступность порта...'
+                script {
+                    // Преобразование
+                    ArrayList<String> allPorts = new ArrayList<>()
+                    allPorts.addAll(ports.split(',\\s*'))
+                    ports = allPorts.join(',')
+                    String host
+                    int size = activeHosts.size()
+                    for (int i = 0; i < size; i++) {
+                        host = activeHosts.get(i)
+                        echo "Проверка хоста ${host}"
+                        shReturnStdout("nmap -v ${host} -p ${ports} | grep -E '|^[0-9]+/[a-z]+.+'")
+                    }
+                }
+            }
+        }
+        post {
+            always {
+                cleanWs()
+            }
+        }
+    }
+}
