@@ -60,7 +60,7 @@ pipeline {
                     for (int i = 0; i < size; i++) {
                         host = activeHosts.get(i)
                         echo "Проверка хоста ${host}"
-                        echo shReturnStdout("nmap -v ${host} -p ${ports} | grep -E '|^[0-9]+/[a-z]+.+'")
+                        echo shReturnStdout("nmap -Pn -n --reason ${host} -p ${ports} | grep -E 'PORT|^[0-9]+/[a-z]+.+'")
                     }
                 }
             }
