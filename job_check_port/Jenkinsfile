@@ -39,10 +39,9 @@ pipeline {
                             echo "Хост ${host} не доступен"
                         }
                     }
-                    // Если нет доступных, завершить
+                    // Если нет доступных
                     if (activeHosts.isEmpty()) {
-                        currentBuild.result = 'ABORTED'
-                        error "Нет доступных хостов"
+                        activeHosts = allHosts
                     }
                 }
             }
