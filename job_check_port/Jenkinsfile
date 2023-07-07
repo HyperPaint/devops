@@ -19,34 +19,34 @@ ArrayList<String> activeHosts = new ArrayList<>()
 pipeline {
     agent any
     stages {
-        stage('Ping') {
+        stage('nslookup') {
             steps {
-                echo 'Проверяю доступность хоста...'
+                echo 'Проверяю существование хоста...'
                 script {
                     // Преобразование
                     ArrayList<String> allHosts = new ArrayList<>()
                     allHosts.addAll(hosts.split(',\\s*'))
-                    // Проверка доступности
+                    // Проверка существования
                     String host
                     int size = allHosts.size()
                     for (int i = 0; i < size; i++) {
                         host = allHosts.get(i)
                         echo "Проверка хоста ${host}"
-                        if (shReturnStatus("ping -q -c 1 ${host}")) {
-                            echo "Хост ${host} доступен"
+                        if (shReturnStatus("nslookup ${host}")) {
+                            echo "Хост ${host} найден"
                             activeHosts.add(host)
                         } else {
-                            echo "Хост ${host} не доступен"
+                            echo "Хост ${host} не найден"
                         }
                     }
-                    // Если нет доступных
+                    // Если нет существующих
                     if (activeHosts.isEmpty()) {
-                        activeHosts = allHosts
+                        error "Хост не найден"
                     }
                 }
             }
         }
-        stage('Port') {
+        stage('port') {
             steps {
                 echo 'Проверяю доступность порта...'
                 script {
