@@ -7,6 +7,12 @@ Boolean shReturnStatus(String cmd) {
     return result
 }
 
+String shReturnStdout(String cmd) {
+    assert cmd instanceof String
+    String result = sh(script: cmd, returnStdout: true).trim()
+    return result
+}
+
 // Активные хосты
 ArrayList<String> activeHosts = new ArrayList<>()
 
@@ -53,7 +59,7 @@ pipeline {
                     for (int i = 0; i < size; i++) {
                         host = activeHosts.get(i)
                         echo "Проверка хоста ${host}"
-                        sh "nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+.+'"
+                        echo shReturnStdout("nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+'")
                     }
                 }
             }
