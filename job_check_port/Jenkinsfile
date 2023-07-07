@@ -7,12 +7,6 @@ Boolean shReturnStatus(String cmd) {
     return result
 }
 
-String shReturnStdout(String cmd) {
-    assert cmd instanceof String
-    String result = sh(script: cmd, returnStdout: true).trim()
-    return result
-}
-
 // Активные хосты
 ArrayList<String> activeHosts = new ArrayList<>()
 
@@ -32,7 +26,7 @@ pipeline {
                     for (int i = 0; i < size; i++) {
                         host = allHosts.get(i)
                         echo "Проверка хоста ${host}"
-                        if (shReturnStatus("nslookup ${host}")) {
+                        if (shReturnStatus("nslookup -timeout=10 -type=a ${host} | grep -i 'address' | grep -vE '127.0.0.1|127.0.0.53'")) {
                             echo "Хост ${host} найден"
                             activeHosts.add(host)
                         } else {
@@ -59,7 +53,7 @@ pipeline {
                     for (int i = 0; i < size; i++) {
                         host = activeHosts.get(i)
                         echo "Проверка хоста ${host}"
-                        echo shReturnStdout("nmap -Pn -n --reason ${host} -p ${ports} | grep -E 'PORT|^[0-9]+/[a-z]+.+'")
+                        sh "nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+.+'"
                     }
                 }
             }
