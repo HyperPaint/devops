@@ -18,17 +18,11 @@ String shReturnStdout(String cmd) {
 
 String matcherMatchesGetFirstGroup(String text, String regex) {
     Matcher matcher = (text =~ regex)
-    matcher.matches()
+    matcher.find()
     try {
         return matcher.group(1)
     }
     catch (IllegalStateException e) {
-        try {
-            return (text =~ regex)[0][1]
-        }
-        catch (Exception ignored) {
-
-        }
         error("Не удалось найти совпадение по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
     }
     catch (IndexOutOfBoundsException e) {
@@ -38,6 +32,7 @@ String matcherMatchesGetFirstGroup(String text, String regex) {
 
 // Вывод состояния контейнера
 void echoContainerState(Map<String, String> containerStateMap) {
+    echo("ID: ${containerStateMap.getOrDefault('id', '')}")
     echo("Status: ${containerStateMap.getOrDefault('status', '')}")
     echo("Running: ${containerStateMap.getOrDefault('running', '')}")
     echo("Paused: ${containerStateMap.getOrDefault('paused', '')}")
@@ -54,15 +49,12 @@ void echoContainerState(Map<String, String> containerStateMap) {
 // Одинаковые для всех проверки
 void checkCommon(Map<String, String> containerStateMap) {
     if (containerStateMap.getOrDefault('paused', '').toBoolean()) {
-        echoContainerState(containerStateMap)
         currentBuild.result = 'UNSTABLE'
         error('Действие невозможно, контейнер приостановлен')
     } else if (containerStateMap.getOrDefault('oomKilled', '').toBoolean()) {
-        echoContainerState(containerStateMap)
         currentBuild.result = 'UNSTABLE'
         error('Действие невозможно, недостаточно памяти')
     } else if (containerStateMap.getOrDefault('dead', '').toBoolean()) {
-        echoContainerState(containerStateMap)
         currentBuild.result = 'UNSTABLE'
         error('Действие невозможно, контейнер мёртв')
     }
@@ -134,6 +126,7 @@ pipeline {
                             },
                              */
                             Map<String, String> containerStateMap = new HashMap<>()
+                            containerStateMap.put('id', containerIds.get(i)) // string
                             containerStateMap.put('status', matcherMatchesGetFirstGroup(state, '"Status":\\s"([a-z]+)",')) // string
                             containerStateMap.put('running', matcherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
                             containerStateMap.put('paused', matcherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
@@ -147,6 +140,7 @@ pipeline {
                             containerStateMap.put('startedAtTime', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
                             containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
                             containerStateMap.put('finishedAtTime', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
+                            echoContainerState(containerStateMap)
                             containerStates.add(containerStateMap)
                         }
                     }
@@ -164,6 +158,7 @@ pipeline {
                             boolean someNotRunning = false
                             for (int i = 0; i < size; i++) {
                                 Map<String, String> containerStateMap = containerStates.get(i)
+                                echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
                                 checkCommon(containerStateMap)
                                 // Если хоть один остановлен
                                 someNotRunning = someNotRunning || !containerStateMap.getOrDefault('running', '').toBoolean()
@@ -178,6 +173,7 @@ pipeline {
                             boolean someRunning = false
                             for (int i = 0; i < size; i++) {
                                 Map<String, String> containerStateMap = containerStates.get(i)
+                                echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
                                 checkCommon(containerStateMap)
                                 // Если хоть один запущен
                                 someRunning = someRunning || containerStateMap.getOrDefault('running', '').toBoolean()
@@ -192,6 +188,7 @@ pipeline {
                             boolean someRestarting = false
                             for (int i = 0; i < size; i++) {
                                 Map<String, String> containerStateMap = containerStates.get(i)
+                                echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
                                 checkCommon(containerStateMap)
                                 // Если хоть один перезапускается
                                 someRestarting = someRestarting || containerStateMap.getOrDefault('restarting', '').toBoolean()
