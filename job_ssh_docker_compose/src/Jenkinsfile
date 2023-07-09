@@ -156,10 +156,10 @@ pipeline {
                             containerStateMap.put('pid', matcherMatchesGetFirstGroup(state, '"Pid":\\s([0-9]+),')) // int
                             containerStateMap.put('exitCode', matcherMatchesGetFirstGroup(state, '"ExitCode":\\s([0-9]+),')) // int
                             containerStateMap.put('error', matcherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
-                            containerStateMap.put('startedAtDate', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
-                            containerStateMap.put('startedAtTime', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
-                            containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
-                            containerStateMap.put('finishedAtTime', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
+                            containerStateMap.put('startedAtDate', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z",')) // datetime
+                            containerStateMap.put('startedAtTime', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.{0,1}\\d*Z",')) // datetime
+                            containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z",')) // datetime
+                            containerStateMap.put('finishedAtTime', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.{0,1}\\d*Z"')) // datetime
                             echoContainerState(containerStateMap)
                             containerStates.add(containerStateMap)
                         }
