@@ -32,18 +32,18 @@ String matcherMatchesGetFirstGroup(String text, String regex) {
 
 // Вывод состояния контейнера
 void echoContainerState(Map<String, String> containerStateMap) {
-    echo("ID: ${containerStateMap.getOrDefault('id', '')}")
-    echo("Status: ${containerStateMap.getOrDefault('status', '')}")
-    echo("Running: ${containerStateMap.getOrDefault('running', '')}")
-    echo("Paused: ${containerStateMap.getOrDefault('paused', '')}")
-    echo("Restarting: ${containerStateMap.getOrDefault('restarting', '')}")
-    echo("OOMKilled: ${containerStateMap.getOrDefault('oomKilled', '')}")
-    echo("Dead: ${containerStateMap.getOrDefault('dead', '')}")
-    echo("Pid: ${containerStateMap.getOrDefault('pid', '')}")
-    echo("ExitCode: ${containerStateMap.getOrDefault('exitCode', '')}")
-    echo("Error: ${containerStateMap.getOrDefault('error', '')}")
-    echo("StartedAt: ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
-    echo("FinishedAt: ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
+    echo("ID: ${containerStateMap.getOrDefault('id', '')}\n" +
+            "Status: ${containerStateMap.getOrDefault('status', '')}\n" +
+            "Running: ${containerStateMap.getOrDefault('running', '')}\n" +
+            "Paused: ${containerStateMap.getOrDefault('paused', '')}\n" +
+            "Restarting: ${containerStateMap.getOrDefault('restarting', '')}\n" +
+            "OOMKilled: ${containerStateMap.getOrDefault('oomKilled', '')}\n" +
+            "Dead: ${containerStateMap.getOrDefault('dead', '')}\n" +
+            "Pid: ${containerStateMap.getOrDefault('pid', '')}\n" +
+            "ExitCode: ${containerStateMap.getOrDefault('exitCode', '')}\n" +
+            "Error: ${containerStateMap.getOrDefault('error', '')}\n" +
+            "StartedAt: ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}\n" +
+            "FinishedAt: ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
 }
 
 // Одинаковые для всех проверки
@@ -73,14 +73,19 @@ pipeline {
                 script {
                     withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
                         // Проверка подключения
-                        if (!shReturnStatus("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'exit'")) {
+                        echo('Указаны параметры подключение по ssh')
+                        if (shReturnStatus("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'exit'")) {
+                            echo("Удалось подключиться по ssh")
+                        } else {
                             error('Не удалось подключиться по ssh')
                         }
                         // Проверка файла
                         echo("Указан путь к файлу ${docker_compose_file_path}")
                         docker_compose_file_name = matcherMatchesGetFirstGroup(docker_compose_file_path, '^.*/(.+)$')
-                        echo("Найден файл ${docker_compose_file_name}")
-                        if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
+                        echo("Вычислено название файла ${docker_compose_file_name}")
+                        if (shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
+                            echo("Найден файл ${docker_compose_file_path}")
+                        } else {
                             error("Указан недопустимый файл $docker_compose_file_path")
                         }
                     }
@@ -90,6 +95,7 @@ pipeline {
                         case 'start':
                         case 'stop':
                         case 'restart':
+                            echo("Указано допустимое действие ${docker_compose_action}")
                             break
                         default:
                             error("Указано недопустимое действие ${docker_compose_action}")
