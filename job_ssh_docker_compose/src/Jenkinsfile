@@ -1,6 +1,7 @@
 String host_credentials = params.host_credentials
 String ssh_credentials = params.ssh_credentials
-String docker_compose_path = params.docker_compose_path
+String docker_compose_file_path = params.docker_compose_file_path
+String docker_compose_file_name = (docker_compose_file_path =~ '^[A-Za-z/]*(.+)$').group()
 String docker_compose_action = params.docker_compose_action
 
 Boolean shReturnStatus(String cmd) {
@@ -62,9 +63,9 @@ pipeline {
                             error('Не удалось подключиться по ssh')
                         }
                         // Проверка файла
-                        echo("Указан файл $docker_compose_path")
-                        if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_path} ]]'")) {
-                            error("Указан недопустимый файл $docker_compose_path")
+                        echo("Указан файл $docker_compose_file_path")
+                        if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
+                            error("Указан недопустимый файл $docker_compose_file_path")
                         }
                     }
                     echo("Указано действие ${docker_compose_action}")
@@ -85,7 +86,7 @@ pipeline {
                 script {
                     withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
                         // Получить ид контейнеров
-                        String result = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_path} ps -qa'")
+                        String result = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} ps -qa'")
                         containerIds.addAll(result.split('\n'))
 
                         // Получить состояния контейнеров
@@ -186,15 +187,15 @@ pipeline {
                     withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
                         switch (docker_compose_action) {
                             case 'start':
-                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_path} start'")
+                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} start'")
                                 break
 
                             case 'stop':
-                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_path} stop'")
+                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} stop'")
                                 break
 
                             case 'restart':
-                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_path} restart'")
+                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} restart'")
                                 break
 
                         }
