@@ -128,25 +128,19 @@ pipeline {
                             },
                              */
                             Map<String, String> containerStateMap = new HashMap<>()
-                            try {
-                                containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status":\\s"([a-z]+)",')) // string
-                                containerStateMap.put('running', matherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
-                                containerStateMap.put('paused', matherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
-                                containerStateMap.put('restarting', matherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
-                                containerStateMap.put('oomKilled', matherMatchesGetFirstGroup(state, '"OOMKilled":\\s([a-z]+),')) // boolean
-                                containerStateMap.put('dead', matherMatchesGetFirstGroup(state, '"Dead":\\s([a-z]+),')) // boolean
-                                containerStateMap.put('pid', matherMatchesGetFirstGroup(state, '"Pid":\\s([0-9]+),')) // int
-                                containerStateMap.put('exitCode', matherMatchesGetFirstGroup(state, '"ExitCode":\\s([0-9]+),')) // int
-                                containerStateMap.put('error', matherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
-                                containerStateMap.put('startedAtDate', matherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
-                                containerStateMap.put('startedAtTime', matherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
-                                containerStateMap.put('finishedAtDate', matherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
-                                containerStateMap.put('finishedAtTime', matherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
-                            }
-                            catch (Exception e) {
-                                echo(e.printStackTrace())
-                                error("Не удалось применить регулярное выражение: ${e.message}")
-                            }
+                            containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status":\\s"([a-z]+)",')) // string
+                            containerStateMap.put('running', matherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('paused', matherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('restarting', matherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('oomKilled', matherMatchesGetFirstGroup(state, '"OOMKilled":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('dead', matherMatchesGetFirstGroup(state, '"Dead":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('pid', matherMatchesGetFirstGroup(state, '"Pid":\\s([0-9]+),')) // int
+                            containerStateMap.put('exitCode', matherMatchesGetFirstGroup(state, '"ExitCode":\\s([0-9]+),')) // int
+                            containerStateMap.put('error', matherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
+                            containerStateMap.put('startedAtDate', matherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
+                            containerStateMap.put('startedAtTime', matherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
+                            containerStateMap.put('finishedAtDate', matherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
+                            containerStateMap.put('finishedAtTime', matherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
                             containerStates.add(containerStateMap)
                         }
                     }
@@ -170,7 +164,7 @@ pipeline {
                             }
                             if (!someNotRunning) {
                                 currentBuild.result = 'ABORTED'
-                                error("Уже запущен с ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
+                                error("Проект запущен в ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
                             }
                             break
 
@@ -184,7 +178,7 @@ pipeline {
                             }
                             if (!someRunning) {
                                 currentBuild.result = 'ABORTED'
-                                error("Уже остановлен с ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
+                                error("Проект остановлен в ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
                             }
                             break
 
@@ -198,7 +192,7 @@ pipeline {
                             }
                             if (someRestarting) {
                                 currentBuild.result = 'ABORTED'
-                                error('Уже перезапускается')
+                                error('Проект перезапускается')
                             }
                             break
                     }
