@@ -128,7 +128,7 @@ pipeline {
                             },
                              */
                             Map<String, String> containerStateMap = new HashMap<>()
-                            containerStateMap.put('status', matcherMatchesGetFirstGroup(state, '"Status".*"([a-z]+)",')) // string
+                            containerStateMap.put('status', matcherMatchesGetFirstGroup(state, '.*')) // string
                             containerStateMap.put('running', matcherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
                             containerStateMap.put('paused', matcherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
                             containerStateMap.put('restarting', matcherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
