@@ -158,7 +158,7 @@ pipeline {
                             containerStateMap.put('error', matcherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
                             containerStateMap.put('startedAtDate', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z",')) // datetime
                             containerStateMap.put('startedAtTime', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.{0,1}\\d*Z",')) // datetime
-                            containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z",')) // datetime
+                            containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z"')) // datetime
                             containerStateMap.put('finishedAtTime', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.{0,1}\\d*Z"')) // datetime
                             echoContainerState(containerStateMap)
                             containerStates.add(containerStateMap)
