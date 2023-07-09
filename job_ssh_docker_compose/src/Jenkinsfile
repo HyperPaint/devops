@@ -86,7 +86,7 @@ pipeline {
                         if (shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
                             echo("Найден файл ${docker_compose_file_path}")
                         } else {
-                            error("Указан недопустимый файл $docker_compose_file_path")
+                            error("Не найден файл $docker_compose_file_path")
                         }
                     }
                     echo("Указано действие ${docker_compose_action}")
@@ -95,28 +95,37 @@ pipeline {
                         case 'start':
                         case 'stop':
                         case 'restart':
-                            echo("Указано допустимое действие ${docker_compose_action}")
+                            echo("Допустимое действие ${docker_compose_action}")
                             break
                         default:
-                            error("Указано недопустимое действие ${docker_compose_action}")
+                            error("Недопустимое действие ${docker_compose_action}")
                     }
                 }
             }
         }
-        stage('get_state') {
+        stage('get_containers') {
+            steps {
+                echo 'Получаю контейнеры...'
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        String result = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} ps -qa'").trim()
+                        containerIds.addAll(result.split('\n'))
+                        containerIds.remove('')
+                        if (containerIds.size() != 0) {
+                            echo("Найдены контейнеры\n${result}")
+                        } else {
+                            currentBuild.result = 'ABORTED'
+                            error('Проект не имеет контейнеров')
+                        }
+                    }
+                }
+            }
+        }
+        stage('get_states') {
             steps {
                 echo 'Получаю состояние...'
                 script {
                     withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                        // Получить ид контейнеров
-                        String result = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} ps -qa'")
-                        containerIds.addAll(result.split('\n'))
-                        // Если нет контейнеров
-                        if (containerIds.size() == 0) {
-                            currentBuild.result = 'ABORTED'
-                            error('Проект не имеет контейнеров')
-                        }
-
                         // Получить состояния контейнеров
                         int size = containerIds.size()
                         for (int i = 0; i < size; i++) {
@@ -158,7 +167,7 @@ pipeline {
                 }
             }
         }
-        stage('analyze_state') {
+        stage('analyze_states') {
             steps {
                 echo 'Анализирую состояние...'
                 script {
