@@ -213,14 +213,17 @@ pipeline {
                         switch (docker_compose_action) {
                             case 'start':
                                 sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} start'")
+                                echo('Проект запущен')
                                 break
 
                             case 'stop':
                                 sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} stop'")
+                                echo('Проект остановлен')
                                 break
 
                             case 'restart':
                                 sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} restart'")
+                                echo('Проект перезапущен')
                                 break
 
                         }
