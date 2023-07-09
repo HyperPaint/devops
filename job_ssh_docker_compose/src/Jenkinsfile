@@ -13,6 +13,38 @@ String shReturnStdout(String cmd) {
     return sh(script: cmd, returnStdout: true)
 }
 
+// Вывод состояния контейнера
+void echoContainerState(Map<String, String> containerStateMap) {
+    echo("Status: ${containerStateMap.getOrDefault('status', '')}")
+    echo("Running: ${containerStateMap.getOrDefault('running', '')}")
+    echo("Paused: ${containerStateMap.getOrDefault('paused', '')}")
+    echo("Restarting: ${containerStateMap.getOrDefault('restarting', '')}")
+    echo("OOMKilled: ${containerStateMap.getOrDefault('oomKilled', '')}")
+    echo("Dead: ${containerStateMap.getOrDefault('dead', '')}")
+    echo("Pid: ${containerStateMap.getOrDefault('pid', '')}")
+    echo("ExitCode: ${containerStateMap.getOrDefault('exitCode', '')}")
+    echo("Error: ${containerStateMap.getOrDefault('error', '')}")
+    echo("StartedAt: ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
+    echo("FinishedAt: ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
+}
+
+// Одинаковые для всех проверки
+void checkCommon(Map<String, String> containerStateMap) {
+    if (containerStateMap.getOrDefault('paused', '').toBoolean()) {
+        echoContainerState(containerStateMap)
+        currentBuild.result = 'UNSTABLE'
+        error('Действие невозможно, контейнер приостановлен')
+    } else if (containerStateMap.getOrDefault('oomKilled', '').toBoolean()) {
+        echoContainerState(containerStateMap)
+        currentBuild.result = 'UNSTABLE'
+        error('Действие невозможно, недостаточно памяти')
+    } else if (containerStateMap.getOrDefault('dead', '').toBoolean()) {
+        echoContainerState(containerStateMap)
+        currentBuild.result = 'UNSTABLE'
+        error('Действие невозможно, контейнер мёртв')
+    }
+}
+
 ArrayList<String> containerIds = new ArrayList<>()
 ArrayList<Map<String,String>> containerStates = new ArrayList<>()
 
@@ -99,38 +131,6 @@ pipeline {
             steps {
                 echo 'Анализирую состояние...'
                 script {
-                    // Вывод состояния контейнера
-                    Runnable echoContainerState = (containerStateMap) -> {
-                        echo("Status: ${containerStateMap.getOrDefault('status', '')}")
-                        echo("Running: ${containerStateMap.getOrDefault('running', '')}")
-                        echo("Paused: ${containerStateMap.getOrDefault('paused', '')}")
-                        echo("Restarting: ${containerStateMap.getOrDefault('restarting', '')}")
-                        echo("OOMKilled: ${containerStateMap.getOrDefault('oomKilled', '')}")
-                        echo("Dead: ${containerStateMap.getOrDefault('dead', '')}")
-                        echo("Pid: ${containerStateMap.getOrDefault('pid', '')}")
-                        echo("ExitCode: ${containerStateMap.getOrDefault('exitCode', '')}")
-                        echo("Error: ${containerStateMap.getOrDefault('error', '')}")
-                        echo("StartedAt: ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
-                        echo("FinishedAt: ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
-                    }
-
-                    // Одинаковые для всех проверки
-                    Runnable checkCommon = (containerStateMap) -> {
-                        if (containerStateMap.getOrDefault('paused', '').toBoolean()) {
-                            echoContainerState(containerStateMap)
-                            currentBuild.result = 'UNSTABLE'
-                            error('Действие невозможно, контейнер приостановлен')
-                        } else if (containerStateMap.getOrDefault('oomKilled', '').toBoolean()) {
-                            echoContainerState(containerStateMap)
-                            currentBuild.result = 'UNSTABLE'
-                            error('Действие невозможно, недостаточно памяти')
-                        } else if (containerStateMap.getOrDefault('dead', '').toBoolean()) {
-                            echoContainerState(containerStateMap)
-                            currentBuild.result = 'UNSTABLE'
-                            error('Действие невозможно, контейнер мёртв')
-                        }
-                    }
-
                     // Проверка возможности действия с текущим состоянием
                     int size = containerStates.size()
                     switch (docker_compose_action) {
