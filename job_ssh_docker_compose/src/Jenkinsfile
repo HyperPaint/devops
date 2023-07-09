@@ -66,7 +66,7 @@ pipeline {
                         }
                         // Проверка файла
                         echo("Указан путь к файлу ${docker_compose_file_path}")
-                        docker_compose_file_name = (docker_compose_file_path =~ '^.*/(.+)$')[0][1]
+                        docker_compose_file_name = (docker_compose_file_path =~ '^.*/(.+)$').group(1)
                         echo("Указан файл ${docker_compose_file_name}")
                         if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
                             error("Указан недопустимый файл $docker_compose_file_path")
@@ -96,7 +96,7 @@ pipeline {
                         // Получить состояния контейнеров
                         int size = containerIds.size()
                         for (int i = 0; i < size; i++) {
-                            state = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker inspect ${containersId.get(i)}'")
+                            state = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker inspect ${containerIds.get(i)}'")
                             /*
                             "State": {
                                 "Status": "exited",
