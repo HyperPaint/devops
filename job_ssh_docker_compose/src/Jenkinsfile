@@ -1,0 +1,262 @@
+import java.util.regex.Matcher
+
+String host_credentials = params.host_credentials
+String ssh_credentials = params.ssh_credentials
+String docker_compose_file_path = params.docker_compose_file_path
+String docker_compose_file_name = ''
+String docker_compose_action = params.docker_compose_action
+
+Boolean shReturnStatus(String cmd) {
+    assert cmd instanceof String
+    return sh(script: cmd, returnStatus: true) == 0
+}
+
+String shReturnStdout(String cmd) {
+    assert cmd instanceof String
+    return sh(script: cmd, returnStdout: true)
+}
+
+String matcherMatchesGetFirstGroup(String text, String regex) {
+    Matcher matcher = (text =~ regex)
+    matcher.find()
+    try {
+        return matcher.group(1)
+    }
+    catch (IllegalStateException e) {
+        error("Не удалось найти совпадение по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
+    }
+    catch (IndexOutOfBoundsException e) {
+        error("Не удалось найти первую группу по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
+    }
+}
+
+// Вывод состояния контейнера
+void echoContainerState(Map<String, String> containerStateMap) {
+    echo("ID: ${containerStateMap.getOrDefault('id', '')}\n" +
+            "Status: ${containerStateMap.getOrDefault('status', '')}\n" +
+            "Running: ${containerStateMap.getOrDefault('running', '')}\n" +
+            "Paused: ${containerStateMap.getOrDefault('paused', '')}\n" +
+            "Restarting: ${containerStateMap.getOrDefault('restarting', '')}\n" +
+            "OOMKilled: ${containerStateMap.getOrDefault('oomKilled', '')}\n" +
+            "Dead: ${containerStateMap.getOrDefault('dead', '')}\n" +
+            "Pid: ${containerStateMap.getOrDefault('pid', '')}\n" +
+            "ExitCode: ${containerStateMap.getOrDefault('exitCode', '')}\n" +
+            "Error: ${containerStateMap.getOrDefault('error', '')}\n" +
+            "StartedAt: ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}\n" +
+            "FinishedAt: ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
+}
+
+// Одинаковые для всех проверки
+void checkCommon(Map<String, String> containerStateMap) {
+    if (containerStateMap.getOrDefault('paused', '').toBoolean()) {
+        currentBuild.result = 'UNSTABLE'
+        error('Действие невозможно, контейнер приостановлен')
+    } else if (containerStateMap.getOrDefault('oomKilled', '').toBoolean()) {
+        currentBuild.result = 'UNSTABLE'
+        error('Действие невозможно, недостаточно памяти')
+    } else if (containerStateMap.getOrDefault('dead', '').toBoolean()) {
+        currentBuild.result = 'UNSTABLE'
+        error('Действие невозможно, контейнер мёртв')
+    }
+}
+
+ArrayList<String> containerIds = new ArrayList<>()
+ArrayList<Map<String,String>> containerStates = new ArrayList<>()
+
+//noinspection GroovyAssignabilityCheck
+pipeline {
+    agent any
+    stages {
+        stage('check_input') {
+            steps {
+                echo 'Проверяю входные данные...'
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        // Проверка подключения
+                        echo('Указаны параметры подключение по ssh')
+                        if (shReturnStatus("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'exit'")) {
+                            echo("Удалось подключиться по ssh")
+                        } else {
+                            error('Не удалось подключиться по ssh')
+                        }
+                        // Проверка файла
+                        echo("Указан путь к файлу ${docker_compose_file_path}")
+                        docker_compose_file_name = matcherMatchesGetFirstGroup(docker_compose_file_path, '^.*/(.+)$')
+                        echo("Вычислено название файла ${docker_compose_file_name}")
+                        if (shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
+                            echo("Найден файл ${docker_compose_file_path}")
+                        } else {
+                            error("Не найден файл $docker_compose_file_path")
+                        }
+                    }
+                    echo("Указано действие ${docker_compose_action}")
+                    //noinspection GroovyFallthrough
+                    switch (docker_compose_action) {
+                        case 'start':
+                        case 'stop':
+                        case 'restart':
+                            echo("Допустимое действие ${docker_compose_action}")
+                            break
+                        default:
+                            error("Недопустимое действие ${docker_compose_action}")
+                    }
+                }
+            }
+        }
+        stage('get_containers') {
+            steps {
+                echo 'Получаю контейнеры...'
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        String result = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} ps -qa'").trim()
+                        containerIds.addAll(result.split('\n'))
+                        containerIds.remove('')
+                        if (containerIds.size() != 0) {
+                            echo("Найдены контейнеры\n${result}")
+                        } else {
+                            currentBuild.result = 'ABORTED'
+                            error('Проект не имеет контейнеров')
+                        }
+                    }
+                }
+            }
+        }
+        stage('get_states') {
+            steps {
+                echo 'Получаю состояние...'
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        // Получить состояния контейнеров
+                        int size = containerIds.size()
+                        for (int i = 0; i < size; i++) {
+                            state = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker inspect ${containerIds.get(i)}'")
+                            /*
+                            "State": {
+                                "Status": "exited",
+                                "Running": false,
+                                "Paused": false,
+                                "Restarting": false,
+                                "OOMKilled": false,
+                                "Dead": false,
+                                "Pid": 0,
+                                "ExitCode": 137,
+                                "Error": "",
+                                "StartedAt": "2023-07-08T12:12:54.655493806Z",
+                                "FinishedAt": "2023-07-08T12:13:13.041136993Z"
+                            },
+                             */
+                            Map<String, String> containerStateMap = new HashMap<>()
+                            containerStateMap.put('id', containerIds.get(i)) // string
+                            containerStateMap.put('status', matcherMatchesGetFirstGroup(state, '"Status":\\s"([a-z]+)",')) // string
+                            containerStateMap.put('running', matcherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('paused', matcherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('restarting', matcherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('oomKilled', matcherMatchesGetFirstGroup(state, '"OOMKilled":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('dead', matcherMatchesGetFirstGroup(state, '"Dead":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('pid', matcherMatchesGetFirstGroup(state, '"Pid":\\s([0-9]+),')) // int
+                            containerStateMap.put('exitCode', matcherMatchesGetFirstGroup(state, '"ExitCode":\\s([0-9]+),')) // int
+                            containerStateMap.put('error', matcherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
+                            containerStateMap.put('startedAtDate', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z",')) // datetime
+                            containerStateMap.put('startedAtTime', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.{0,1}\\d*Z",')) // datetime
+                            containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.{0,1}\\d*Z"')) // datetime
+                            containerStateMap.put('finishedAtTime', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.{0,1}\\d*Z"')) // datetime
+                            echoContainerState(containerStateMap)
+                            containerStates.add(containerStateMap)
+                        }
+                    }
+                }
+            }
+        }
+        stage('analyze_states') {
+            steps {
+                echo 'Анализирую состояние...'
+                script {
+                    // Проверка возможности действия с текущим состоянием
+                    boolean action = false
+                    Map<String, String> containerStateMap = null
+                    int size = containerStates.size()
+                    switch (docker_compose_action) {
+                        case 'start':
+                            for (int i = 0; i < size; i++) {
+                                containerStateMap = containerStates.get(i)
+                                echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
+                                checkCommon(containerStateMap)
+                                // Если хоть один остановлен
+                                if (!containerStateMap.getOrDefault('running', '').toBoolean()) {
+                                    action = true
+                                    break
+                                }
+                            }
+                            if (!action) {
+                                currentBuild.result = 'ABORTED'
+                                error("Проект уже запущен примерно в ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
+                            }
+                            break
+
+                        case 'stop':
+                            for (int i = 0; i < size; i++) {
+                                containerStateMap = containerStates.get(i)
+                                echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
+                                checkCommon(containerStateMap)
+                                // Если хоть один запущен
+                                if (containerStateMap.getOrDefault('running', '').toBoolean()) {
+                                    action = true
+                                    break
+                                }
+                            }
+                            if (!action) {
+                                currentBuild.result = 'ABORTED'
+                                error("Проект уже остановлен примерно в ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
+                            }
+                            break
+
+                        case 'restart':
+                            for (int i = 0; i < size; i++) {
+                                containerStateMap = containerStates.get(i)
+                                echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
+                                checkCommon(containerStateMap)
+                                // Если хоть один перезапускается
+                                action = action || containerStateMap.getOrDefault('restarting', '').toBoolean()
+                            }
+                            if (action) {
+                                currentBuild.result = 'ABORTED'
+                                error('Проект уже перезапускается')
+                            }
+                            break
+                    }
+                }
+            }
+        }
+        stage('action') {
+            steps {
+                echo 'Выполняю действие...'
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        switch (docker_compose_action) {
+                            case 'start':
+                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} start'")
+                                echo('Проект запущен')
+                                break
+
+                            case 'stop':
+                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} stop'")
+                                echo('Проект остановлен')
+                                break
+
+                            case 'restart':
+                                sh("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} restart'")
+                                echo('Проект перезапущен')
+                                break
+
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
