@@ -1,7 +1,9 @@
+import java.util.regex.Matcher
+
 String host_credentials = params.host_credentials
 String ssh_credentials = params.ssh_credentials
 String docker_compose_file_path = params.docker_compose_file_path
-String docker_compose_file_name = (docker_compose_file_path =~ '^[A-Za-z.\\-/]*/(.+)$').group()
+String docker_compose_file_name = ''
 String docker_compose_action = params.docker_compose_action
 
 Boolean shReturnStatus(String cmd) {
@@ -63,7 +65,9 @@ pipeline {
                             error('Не удалось подключиться по ssh')
                         }
                         // Проверка файла
-                        echo("Указан файл $docker_compose_file_path")
+                        echo("Указан путь к файлу ${docker_compose_file_path}")
+                        docker_compose_file_name = (docker_compose_file_path =~ '^.*/(.+)$')[0][1]
+                        echo("Указан файл ${docker_compose_file_name}")
                         if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
                             error("Указан недопустимый файл $docker_compose_file_path")
                         }
