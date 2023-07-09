@@ -37,7 +37,9 @@ pipeline {
                     }
                     echo("Указано действие ${docker_compose_action}")
                     switch (docker_compose_action) {
-                        case 'start', 'stop', 'restart':
+                        case 'start':
+                        case 'stop':
+                        case 'restart':
                             break
                         default:
                             error("Указано недопустимое действие ${docker_compose_action}")
