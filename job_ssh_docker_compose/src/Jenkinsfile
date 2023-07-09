@@ -100,7 +100,7 @@ pipeline {
                 echo 'Анализирую состояние...'
                 script {
                     // Вывод состояния контейнера
-                    Runnable echoContainerState = (Map<String, String> containerStateMap) -> {
+                    Runnable echoContainerState = (containerStateMap) -> {
                         echo("Status: ${containerStateMap.getOrDefault('status', '')}")
                         echo("Running: ${containerStateMap.getOrDefault('running', '')}")
                         echo("Paused: ${containerStateMap.getOrDefault('paused', '')}")
@@ -115,7 +115,7 @@ pipeline {
                     }
 
                     // Одинаковые для всех проверки
-                    Runnable checkCommon = (Map<String, String> containerStateMap) -> {
+                    Runnable checkCommon = (containerStateMap) -> {
                         if (containerStateMap.getOrDefault('paused', '').toBoolean()) {
                             echoContainerState(containerStateMap)
                             currentBuild.result = 'UNSTABLE'
