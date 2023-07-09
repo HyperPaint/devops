@@ -63,7 +63,7 @@ pipeline {
                         }
                         // Проверка файла
                         echo("Указан файл $docker_compose_path")
-                        if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f docker-compose.yml ]]'")) {
+                        if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_path} ]]'")) {
                             error("Указан недопустимый файл $docker_compose_path")
                         }
                     }
