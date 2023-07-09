@@ -1,7 +1,7 @@
 String host_credentials = params.host_credentials
 String ssh_credentials = params.ssh_credentials
 String docker_compose_file_path = params.docker_compose_file_path
-String docker_compose_file_name = (docker_compose_file_path =~ '^[A-Za-z\\.\\/]*\\/(.+)$').group()
+String docker_compose_file_name = (docker_compose_file_path =~ '^[A-Za-z.\\-/]*/(.+)$').group()
 String docker_compose_action = params.docker_compose_action
 
 Boolean shReturnStatus(String cmd) {
