@@ -23,9 +23,11 @@ String matherMatchesGetFirstGroup(String text, String regex) {
         return matcher.group(1)
     }
     catch (IllegalStateException e) {
+        sh("echo ${text} > text.log")
         error("Не удалось найти совпадение по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
     }
     catch (IndexOutOfBoundsException e) {
+        sh("echo ${text} > text.log")
         error("Не удалось найти первую группу по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
     }
 }
@@ -128,7 +130,7 @@ pipeline {
                             },
                              */
                             Map<String, String> containerStateMap = new HashMap<>()
-                            containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status":.*"([a-z]+)",')) // string
+                            containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status".*"([a-z]+)",')) // string
                             containerStateMap.put('running', matherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
                             containerStateMap.put('paused', matherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
                             containerStateMap.put('restarting', matherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
