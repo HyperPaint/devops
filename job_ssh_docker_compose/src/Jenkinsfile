@@ -105,6 +105,11 @@ pipeline {
                         // Получить ид контейнеров
                         String result = shReturnStdout("ssh -i ${id_rsa} -o StrictHostKeyChecking=no ${user}@${host} 'docker compose --project-directory ${docker_compose_file_path.replace(docker_compose_file_name, '')} ps -qa'")
                         containerIds.addAll(result.split('\n'))
+                        // Если нет контейнеров
+                        if (containerIds.size() == 0) {
+                            currentBuild.result = 'ABORTED'
+                            error('Проект не имеет контейнеров')
+                        }
 
                         // Получить состояния контейнеров
                         int size = containerIds.size()
@@ -152,50 +157,55 @@ pipeline {
                 echo 'Анализирую состояние...'
                 script {
                     // Проверка возможности действия с текущим состоянием
+                    boolean action = false
+                    Map<String, String> containerStateMap = null
                     int size = containerStates.size()
                     switch (docker_compose_action) {
                         case 'start':
-                            boolean someNotRunning = false
                             for (int i = 0; i < size; i++) {
-                                Map<String, String> containerStateMap = containerStates.get(i)
+                                containerStateMap = containerStates.get(i)
                                 echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
                                 checkCommon(containerStateMap)
                                 // Если хоть один остановлен
-                                someNotRunning = someNotRunning || !containerStateMap.getOrDefault('running', '').toBoolean()
+                                if (!containerStateMap.getOrDefault('running', '').toBoolean()) {
+                                    action = true
+                                    break;
+                                }
                             }
-                            if (!someNotRunning) {
+                            if (!action) {
                                 currentBuild.result = 'ABORTED'
-                                error("Проект запущен в ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
+                                error("Проект уже запущен примерно в ${containerStateMap.getOrDefault('startedAtDate', '')} ${containerStateMap.getOrDefault('startedAtTime', '')}")
                             }
                             break
 
                         case 'stop':
-                            boolean someRunning = false
                             for (int i = 0; i < size; i++) {
-                                Map<String, String> containerStateMap = containerStates.get(i)
+                                containerStateMap = containerStates.get(i)
                                 echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
                                 checkCommon(containerStateMap)
                                 // Если хоть один запущен
-                                someRunning = someRunning || containerStateMap.getOrDefault('running', '').toBoolean()
+                                if (containerStateMap.getOrDefault('running', '').toBoolean()) {
+                                    action = true
+                                    break;
+                                }
                             }
-                            if (!someRunning) {
+                            if (!action) {
                                 currentBuild.result = 'ABORTED'
-                                error("Проект остановлен в ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
+                                error("Проект уже остановлен примерно в ${containerStateMap.getOrDefault('finishedAtDate', '')} ${containerStateMap.getOrDefault('finishedAtTime', '')}")
                             }
                             break
 
                         case 'restart':
-                            boolean someRestarting = false
                             for (int i = 0; i < size; i++) {
-                                Map<String, String> containerStateMap = containerStates.get(i)
+                                containerStateMap = containerStates.get(i)
                                 echo("Анализирую: ${containerStateMap.getOrDefault('id', '')}")
                                 checkCommon(containerStateMap)
                                 // Если хоть один перезапускается
-                                someRestarting = someRestarting || containerStateMap.getOrDefault('restarting', '').toBoolean()
+                                action = action || containerStateMap.getOrDefault('restarting', '').toBoolean()
                             }
-                            if (someRestarting) {
+                            if (action) {
                                 currentBuild.result = 'ABORTED'
-                                error('Проект перезапускается')
+                                error('Проект уже перезапускается')
                             }
                             break
                     }
