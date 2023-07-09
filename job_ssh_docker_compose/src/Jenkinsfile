@@ -23,12 +23,16 @@ String matherMatchesGetFirstGroup(String text, String regex) {
         return matcher.group(1)
     }
     catch (IllegalStateException e) {
-        error("Не удалось применить регулярное выражение '${regex}'")
-        e.printStackTrace()
+        error("Не удалось найти текст по регулярному выражению '${regex}'")
+        error(text)
+        error(e.message)
+        error(e.stackTrace.toString())
     }
     catch (IndexOutOfBoundsException e) {
-        error("Не удалось найти первую группу по регулярному выражению '${regex}': ${e.message}")
-        e.printStackTrace()
+        error("Не удалось найти первую группу по регулярному выражению '${regex}'")
+        error(text)
+        error(e.message)
+        error(e.stackTrace.toString())
     }
 }
 
