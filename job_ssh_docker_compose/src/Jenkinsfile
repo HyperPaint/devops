@@ -16,18 +16,16 @@ String shReturnStdout(String cmd) {
     return sh(script: cmd, returnStdout: true)
 }
 
-String matherMatchesGetFirstGroup(String text, String regex) {
+String matcherMatchesGetFirstGroup(String text, String regex) {
     Matcher matcher = (text =~ regex)
     matcher.matches()
     try {
         return matcher.group(1)
     }
     catch (IllegalStateException e) {
-        sh("echo ${text} > text.log")
         error("Не удалось найти совпадение по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
     }
     catch (IndexOutOfBoundsException e) {
-        sh("echo ${text} > text.log")
         error("Не удалось найти первую группу по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
     }
 }
@@ -82,7 +80,7 @@ pipeline {
                         }
                         // Проверка файла
                         echo("Указан путь к файлу ${docker_compose_file_path}")
-                        docker_compose_file_name = matherMatchesGetFirstGroup(docker_compose_file_path, '^.*/(.+)$')
+                        docker_compose_file_name = matcherMatchesGetFirstGroup(docker_compose_file_path, '^.*/(.+)$')
                         echo("Найден файл ${docker_compose_file_name}")
                         if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
                             error("Указан недопустимый файл $docker_compose_file_path")
@@ -130,19 +128,19 @@ pipeline {
                             },
                              */
                             Map<String, String> containerStateMap = new HashMap<>()
-                            containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status".*"([a-z]+)",')) // string
-                            containerStateMap.put('running', matherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
-                            containerStateMap.put('paused', matherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
-                            containerStateMap.put('restarting', matherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
-                            containerStateMap.put('oomKilled', matherMatchesGetFirstGroup(state, '"OOMKilled":\\s([a-z]+),')) // boolean
-                            containerStateMap.put('dead', matherMatchesGetFirstGroup(state, '"Dead":\\s([a-z]+),')) // boolean
-                            containerStateMap.put('pid', matherMatchesGetFirstGroup(state, '"Pid":\\s([0-9]+),')) // int
-                            containerStateMap.put('exitCode', matherMatchesGetFirstGroup(state, '"ExitCode":\\s([0-9]+),')) // int
-                            containerStateMap.put('error', matherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
-                            containerStateMap.put('startedAtDate', matherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
-                            containerStateMap.put('startedAtTime', matherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
-                            containerStateMap.put('finishedAtDate', matherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
-                            containerStateMap.put('finishedAtTime', matherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
+                            containerStateMap.put('status', matcherMatchesGetFirstGroup(state, '"Status".*"([a-z]+)",')) // string
+                            containerStateMap.put('running', matcherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('paused', matcherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('restarting', matcherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('oomKilled', matcherMatchesGetFirstGroup(state, '"OOMKilled":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('dead', matcherMatchesGetFirstGroup(state, '"Dead":\\s([a-z]+),')) // boolean
+                            containerStateMap.put('pid', matcherMatchesGetFirstGroup(state, '"Pid":\\s([0-9]+),')) // int
+                            containerStateMap.put('exitCode', matcherMatchesGetFirstGroup(state, '"ExitCode":\\s([0-9]+),')) // int
+                            containerStateMap.put('error', matcherMatchesGetFirstGroup(state, '"Error":\\s"(.*)",')) // string
+                            containerStateMap.put('startedAtDate', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
+                            containerStateMap.put('startedAtTime', matcherMatchesGetFirstGroup(state, '"StartedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
+                            containerStateMap.put('finishedAtDate', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"(\\d+-\\d+-\\d+)T\\d+:\\d+:\\d+\\.\\d+Z"')) // datetime
+                            containerStateMap.put('finishedAtTime', matcherMatchesGetFirstGroup(state, '"FinishedAt":\\s"\\d+-\\d+-\\d+T(\\d+:\\d+:\\d+)\\.\\d+Z"')) // datetime
                             containerStates.add(containerStateMap)
                         }
                     }
