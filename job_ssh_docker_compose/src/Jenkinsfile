@@ -81,7 +81,7 @@ pipeline {
                         // Проверка файла
                         echo("Указан путь к файлу ${docker_compose_file_path}")
                         docker_compose_file_name = matherMatchesGetFirstGroup(docker_compose_file_path, '^.*/(.+)$')
-                        echo("Указан файл ${docker_compose_file_name}")
+                        echo("Найден файл ${docker_compose_file_name}")
                         if (!shReturnStatus("ssh -i $id_rsa -o StrictHostKeyChecking=no $user@$host '[[ -f ${docker_compose_file_path} ]]'")) {
                             error("Указан недопустимый файл $docker_compose_file_path")
                         }
@@ -128,7 +128,7 @@ pipeline {
                             },
                              */
                             Map<String, String> containerStateMap = new HashMap<>()
-                            containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status":\\s"([a-z]+)",')) // string
+                            containerStateMap.put('status', matherMatchesGetFirstGroup(state, '"Status":\\s*"([a-z]+)",')) // string
                             containerStateMap.put('running', matherMatchesGetFirstGroup(state, '"Running":\\s([a-z]+),')) // boolean
                             containerStateMap.put('paused', matherMatchesGetFirstGroup(state, '"Paused":\\s([a-z]+),')) // boolean
                             containerStateMap.put('restarting', matherMatchesGetFirstGroup(state, '"Restarting":\\s([a-z]+),')) // boolean
