@@ -3,19 +3,18 @@ String ports = params.ports
 
 Boolean shReturnStatus(String cmd) {
     assert cmd instanceof String
-    Boolean result = sh(script: cmd, returnStatus: true) == 0
-    return result
+    return sh(script: cmd, returnStatus: true) == 0
 }
 
 String shReturnStdout(String cmd) {
     assert cmd instanceof String
-    String result = sh(script: cmd, returnStdout: true).trim()
-    return result
+    return sh(script: cmd, returnStdout: true)
 }
 
 // Активные хосты
 ArrayList<String> activeHosts = new ArrayList<>()
 
+//noinspection GroovyAssignabilityCheck
 pipeline {
     agent any
     stages {
