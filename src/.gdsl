@@ -76,7 +76,7 @@ method(name: 'fileExists', type: 'Object', params: [file:'java.lang.String'], do
 method(name: 'git', type: 'Object', params: [url:'java.lang.String'], doc: 'Git')
 method(name: 'git', type: 'Object', namedParams: [parameter(name: 'url', type: 'java.lang.String'), parameter(name: 'branch', type: 'java.lang.String'), parameter(name: 'changelog', type: 'boolean'), parameter(name: 'credentialsId', type: 'java.lang.String'), parameter(name: 'poll', type: 'boolean'), ], doc: 'Git')
 method(name: 'junit', type: 'Object', params: [testResults:'java.lang.String'], doc: 'Archive JUnit-formatted test results')
-method(name: 'junit', type: 'Object', namedParams: [parameter(name: 'testResults', type: 'java.lang.String'), parameter(name: 'allowEmptyResults', type: 'boolean'), parameter(name: 'checksName', type: 'java.lang.String'), parameter(name: 'healthScaleFactor', type: 'double'), parameter(name: 'keepLongStdio', type: 'boolean'), parameter(name: 'skipMarkingBuildUnstable', type: 'boolean'), parameter(name: 'skipOldReports', type: 'boolean'), parameter(name: 'skipPublishingChecks', type: 'boolean'), parameter(name: 'testDataPublishers', type: 'java.util.List'), ], doc: 'Archive JUnit-formatted test results')
+method(name: 'junit', type: 'Object', namedParams: [parameter(name: 'testResults', type: 'java.lang.String'), parameter(name: 'allowEmptyResults', type: 'boolean'), parameter(name: 'checksName', type: 'java.lang.String'), parameter(name: 'healthScaleFactor', type: 'double'), parameter(name: 'keepLongStdio', type: 'boolean'), parameter(name: 'keepProperties', type: 'boolean'), parameter(name: 'skipMarkingBuildUnstable', type: 'boolean'), parameter(name: 'skipOldReports', type: 'boolean'), parameter(name: 'skipPublishingChecks', type: 'boolean'), parameter(name: 'testDataPublishers', type: 'java.util.List'), ], doc: 'Archive JUnit-formatted test results')
 method(name: 'load', type: 'Object', params: [path:'java.lang.String'], doc: 'Evaluate a Groovy source file into the Pipeline script')
 method(name: 'powershell', type: 'Object', params: [script:'java.lang.String'], doc: 'Windows PowerShell Script')
 method(name: 'powershell', type: 'Object', namedParams: [parameter(name: 'script', type: 'java.lang.String'), parameter(name: 'encoding', type: 'java.lang.String'), parameter(name: 'label', type: 'java.lang.String'), parameter(name: 'returnStatus', type: 'boolean'), parameter(name: 'returnStdout', type: 'boolean'), ], doc: 'Windows PowerShell Script')
@@ -103,3 +103,4 @@ method(name: 'unarchive', type: 'Object', namedParams: [parameter(name: 'mapping
 }
 
 // Errors on:
+
