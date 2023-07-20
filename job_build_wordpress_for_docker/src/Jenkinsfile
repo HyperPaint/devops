@@ -1,0 +1,342 @@
+import java.util.regex.Matcher
+
+Boolean shReturnStatus(String cmd) {
+    assert cmd instanceof String
+    return sh(script: cmd, returnStatus: true) == 0
+}
+
+String shReturnStdout(String cmd) {
+    assert cmd instanceof String
+    return sh(script: cmd, returnStdout: true)
+}
+
+String regexGroup(String text, String regex) {
+    Matcher matcher = (text =~ regex)
+    matcher.find()
+    try {
+        return matcher.group(1)
+    }
+    catch (IllegalStateException e) {
+        error("Не удалось найти совпадение по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
+    }
+    catch (IndexOutOfBoundsException e) {
+        error("Не удалось найти группу по регулярному выражению ${regex}\n${text}\n${e.message}\n${e.stackTrace.toString()}")
+    }
+}
+
+void downloadFile(String url, String file, Integer cacheLifetime = Integer.MAX_VALUE) {
+    assert url instanceof String
+    assert file instanceof String
+    assert cacheLifetime instanceof Integer
+
+    // Поиск существующего файла
+    Integer fileModifiedXSecondsAgo = Integer.MAX_VALUE
+    if (shReturnStatus("[[ -f '${file}' ]]")) {
+        fileModifiedXSecondsAgo = shReturnStdout("echo \"\$(date +%s)-\$(date -r '${file}' +%s)\" | bc").toInteger()
+    }
+
+    // Проверка актуальности файла, больше суток
+    if (fileModifiedXSecondsAgo >= cacheLifetime) {
+        sh("wget -v -O '${file}' '${url}'")
+    }
+}
+
+void aborted(String text) {
+    currentBuild.result = 'ABORTED'
+    error(text)
+}
+
+String host_credentials = env.host_credentials
+String ssh_credentials = env.ssh_credentials
+String docker_compose_directory_path = env.docker_compose_directory_path
+
+String imageName = "blog"
+String imageVersion = null
+String imageFullName = null
+
+Integer cacheLifetime = 86400
+
+String releasesFile = "releases"
+String wordpressReleasesFileName = "${releasesFile}-wordpress.html"
+String themeReleasesFileName = "${releasesFile}-theme-%s.html"
+String pluginReleasesFileName = "${releasesFile}-plugin-%s.html"
+
+String wordpressChosenReleaseLink = null
+String wordpressChosenReleaseFileName = null
+String wordpressChosenReleaseName = null
+
+//noinspection GroovyAssignabilityCheck
+pipeline {
+    agent any
+    stages {
+        stage('Get WordPress') {
+            steps {
+                echo('Проверяю доступные версии WordPress...')
+                script {
+                    downloadFile('https://wordpress.org/download/releases/', wordpressReleasesFileName, cacheLifetime)
+
+                    // Поиск версий в файле
+                    List<String> releasesLinks = new ArrayList<>()
+                    String releasesLinksBuff = shReturnStdout("grep -ioE \"https\\://wordpress\\.org/wordpress\\-[0-9\\.]+\\.tar\\.gz\" \"${wordpressReleasesFileName}\" | uniq | sort -r")
+                    releasesLinks.addAll(releasesLinksBuff.split('\n'))
+                    releasesLinks.remove('')
+                    if (releasesLinks.size()) {
+                        // Выбор версии
+                        echo("Найдено ${releasesLinks.size()} версий WordPress")
+                        if (releasesLinks.size() == 1) {
+                            wordpressChosenReleaseLink = releasesLinks.get(0)
+                        } else {
+                            wordpressChosenReleaseLink = input(message: "Выбор версии WordPress", parameters: [choice(name: "Версия WordPress", choices: releasesLinksBuff)]).toString()
+                        }
+                        wordpressChosenReleaseFileName = regexGroup(wordpressChosenReleaseLink, '/(wordpress-[0-9\\.]+\\.tar\\.gz)')
+                        wordpressChosenReleaseName = regexGroup(wordpressChosenReleaseLink, '/(wordpress-[0-9\\.]+)\\.tar\\.gz')
+                    } else {
+                        aborted("Не найдено ни одной версии WordPress")
+                    }
+                }
+
+                echo('Скачиваю WordPress...')
+                script {
+                    downloadFile(wordpressChosenReleaseLink, wordpressChosenReleaseFileName)
+                }
+
+                echo('Распаковываю WordPress...')
+                script {
+                    if (shReturnStatus("[[ -d '${wordpressChosenReleaseName}' ]]")) {
+                        sh("rm -vrf '${wordpressChosenReleaseName}'")
+                    }
+                    sh("mkdir -v '${wordpressChosenReleaseName}'")
+                    sh("tar x -vzf '${wordpressChosenReleaseFileName}' -C '${wordpressChosenReleaseName}'")
+                }
+            }
+        }
+        stage('Configure WordPress') {
+            steps {
+                echo('Настраиваю WordPress...')
+                // Добавить дополнительную конфигурацию в начало файла с заменой <?php
+                sh("sed -i 's/<?php//g' '${wordpressChosenReleaseName}/wordpress/wp-config-sample.php'")
+                sh("cat \"job_build_wordpress_for_docker/src/wordpress/wp-config.php\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\" | tee \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\" 1>/dev/null")
+                // Параметризовать файл - параметры базы данных
+                sh("sed -i \"s/define( 'DB_NAME', 'database_name_here' );/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'DB_USER', 'username_here' );/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'DB_PASSWORD', 'password_here' );/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'DB_HOST', 'localhost' );/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'DB_CHARSET', 'utf8' );/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'DB_COLLATE', '' );/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                // Параметризовать файл - уникальные ключи и соли для аутентификации
+                sh("sed -i \"s/define( 'AUTH_KEY',         'put your unique phrase here' );/define( 'AUTH_KEY',         '\\\$AUTH_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );/define( 'SECURE_AUTH_KEY',  '\\\$SECURE_AUTH_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'LOGGED_IN_KEY',    'put your unique phrase here' );/define( 'LOGGED_IN_KEY',    '\\\$LOGGED_IN_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'NONCE_KEY',        'put your unique phrase here' );/define( 'NONCE_KEY',        '\\\$NONCE_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'AUTH_SALT',        'put your unique phrase here' );/define( 'AUTH_SALT',        '\\\$AUTH_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'LOGGED_IN_SALT',   'put your unique phrase here' );/define( 'LOGGED_IN_SALT',   '\\\$LOGGED_IN_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                sh("sed -i \"s/define( 'NONCE_SALT',       'put your unique phrase here' );/define( 'NONCE_SALT',       '\\\$NONCE_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+            }
+        }
+        stage('Get Themes') {
+            steps {
+                echo('Удаляю предустановленные темы WordPress...')
+                sh("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/themes/\" && rm -vrf \$(ls | grep -v \"index.php\")")
+
+                echo('Проверяю доступные версии тем WordPress...')
+                script {
+                    String currentThemeReleasesLink = null
+                    String currentThemeReleasesFileName = null
+                    String currentThemeName = null
+                    String themeChosenReleaseLink = null
+                    String themeChosenReleaseFileName = null
+                    String themeChosenReleaseName = null
+                    String releasesLinksBuff = null
+                    List<String> releasesLinks = null
+                    int size = Integer.valueOf((String)env.themes)
+                    for (int i = 1; i <= size; i++) {
+                        currentThemeReleasesLink = env['theme' + i.toString()]
+                        currentThemeName = regexGroup(currentThemeReleasesLink, '/themes/([A-Za-z0-9\\-_\\.]+)')
+                        currentThemeReleasesFileName = String.format(themeReleasesFileName, currentThemeName)
+
+                        // Получить файл релизов
+                        echo("Проверяю доступные версии ${currentThemeName}...")
+                        downloadFile(currentThemeReleasesLink, currentThemeReleasesFileName, cacheLifetime)
+
+                        // Поиск версий в файле
+                        releasesLinksBuff = shReturnStdout("grep -ioE \"https\\://downloads\\.wordpress\\.org/theme/${currentThemeName}\\.[0-9\\.]+\\.zip\" \"${currentThemeReleasesFileName}\" | uniq | sort -r")
+                        releasesLinks = new ArrayList<>()
+                        releasesLinks.addAll(releasesLinksBuff.split('\n'))
+                        releasesLinks.remove('')
+                        if (releasesLinks.size()) {
+                            // Выбор версии
+                            echo("Найдено ${releasesLinks.size()} версий ${currentThemeName}")
+                            if (releasesLinks.size() == 1) {
+                                themeChosenReleaseLink = releasesLinks.get(0)
+                            } else {
+                                themeChosenReleaseLink = input(message: "Выбор версии ${currentThemeName}".toString(), parameters: [choice(name: "Версия ${currentThemeName}", choices: releasesLinksBuff)]).toString()
+                            }
+                            themeChosenReleaseFileName = regexGroup(themeChosenReleaseLink, "/theme/(${currentThemeName}\\.[0-9\\.]+\\.zip)")
+                            themeChosenReleaseName = regexGroup(themeChosenReleaseLink, "/theme/(${currentThemeName}\\.[0-9\\.]+)\\.zip")
+
+                            echo("Скачиваю ${currentThemeName}...")
+                            downloadFile(themeChosenReleaseLink, themeChosenReleaseFileName)
+
+                            echo("Распаковываю ${currentThemeName}...")
+                            sh("unzip '${themeChosenReleaseFileName}' -d '${wordpressChosenReleaseName}/wordpress/wp-content/themes/'")
+                        } else {
+                            error("Не найдено ни одной версии ${currentThemeName}")
+                        }
+                    }
+                }
+            }
+        }
+        stage('Get Plugins') {
+            steps {
+                echo('Удаляю предустановленные плагины WordPress...')
+                sh("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/plugins/\" && rm -vrf \$(ls | grep -v \"index.php\")")
+
+                echo('Проверяю доступные версии плагинов WordPress...')
+                script {
+                    String currentPluginReleasesLink = null
+                    String currentPluginReleasesFileName = null
+                    String currentPluginName = null
+                    String pluginChosenReleaseLink = null
+                    String pluginChosenReleaseFileName = null
+                    String pluginChosenReleaseName = null
+                    String releasesLinksBuff = null
+                    List<String> releasesLinks = null
+                    int size = Integer.valueOf((String)env.plugins)
+                    for (int i = 1; i <= size; i++) {
+                        currentPluginReleasesLink = env['plugin' + i.toString()]
+                        currentPluginName = regexGroup(currentPluginReleasesLink, '/plugins/([A-Za-z0-9\\-_\\.]+)')
+                        currentPluginReleasesFileName = String.format(pluginReleasesFileName, currentPluginName)
+
+                        // Получить файл релизов
+                        echo("Проверяю доступные ${currentPluginName}...")
+                        downloadFile(currentPluginReleasesLink, currentPluginReleasesFileName, cacheLifetime)
+
+                        // Поиск версий в файле
+                        releasesLinksBuff = shReturnStdout("grep -ioE \"https\\://downloads\\.wordpress\\.org/plugin/${currentPluginName}\\.[0-9\\.]+\\.zip\" \"${currentPluginReleasesFileName}\" | uniq | sort -r")
+                        releasesLinks = new ArrayList<>()
+                        releasesLinks.addAll(releasesLinksBuff.split('\n'))
+                        releasesLinks.remove('')
+                        if (releasesLinks.size()) {
+                            // Выбор версии
+                            echo("Найдено ${releasesLinks.size()} версий ${currentPluginName}")
+                            if (releasesLinks.size() == 1) {
+                                pluginChosenReleaseLink = releasesLinks.get(0)
+                            } else {
+                                pluginChosenReleaseLink = input(message: "Выбор версии ${currentPluginName}".toString(), parameters: [choice(name: "Версия ${currentPluginName}", choices: releasesLinksBuff)]).toString()
+                            }
+                            pluginChosenReleaseFileName = regexGroup(pluginChosenReleaseLink, "/plugin/(${currentPluginName}\\.[0-9\\.]+\\.zip)")
+                            pluginChosenReleaseName = regexGroup(pluginChosenReleaseLink, "/plugin/(${currentPluginName}\\.[0-9\\.]+)\\.zip")
+
+                            echo("Скачиваю ${currentPluginName}...")
+                            downloadFile(pluginChosenReleaseLink, pluginChosenReleaseFileName)
+
+                            echo("Распаковываю ${currentPluginName}...")
+                            sh("unzip '${pluginChosenReleaseFileName}' -d '${wordpressChosenReleaseName}/wordpress/wp-content/plugins/'")
+                        } else {
+                            error("Не найдено ни одной версии ${currentPluginName}")
+                        }
+                    }
+                }
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                echo('Копирую зависимые файлы контейнера...')
+                sh("cp -v 'job_build_wordpress_for_docker/src/Dockerfile' '${wordpressChosenReleaseName}/'")
+                sh("cp -vr 'job_build_wordpress_for_docker/src/httpd' '${wordpressChosenReleaseName}/'")
+                sh("cp -vr 'job_build_wordpress_for_docker/src/scripts' '${wordpressChosenReleaseName}/'")
+
+                echo('Собираю контейнер...')
+                script {
+                    imageVersion = regexGroup(wordpressChosenReleaseName, "([0-9\\.]+)") + '-' + (String)env.BUILD_NUMBER
+                    imageFullName = imageName + ':' + imageVersion
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        String pid = shReturnStdout("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' -o 'StreamLocalBindUnlink=yes' -N -L '/var/run/docker.sock:/var/run/docker.sock' '${user}@${host}' & echo \"\$!\"")
+                        sleep(10)
+                        sh("DOCKER_BUILDKIT=1 docker build --tag \"${imageFullName}\" '${wordpressChosenReleaseName}/'")
+                        sh("docker tag \"${imageFullName}\" \"${imageName}\"")
+                        sh("kill ${pid}")
+                    }
+                }
+            }
+        }
+        stage('Docker Deploy') {
+            steps {
+                echo('Развёртываю контейнер...')
+                script {
+                    String result = null
+                    List<String> containerIds = null
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        String config = shReturnStdout("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} config'")
+                        // Кладу хороший конфиг для скачивания
+                        writeFile(file: 'docker-compose.yml', text: config)
+                        sh("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} down'")
+                        sh("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} up -d'")
+                        sleep(10)
+                        sh("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} logs'")
+
+                        result = shReturnStdout("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} ps -q'")
+                        containerIds = new ArrayList<>()
+                        containerIds.addAll(result.split('\n'))
+                        containerIds.remove('')
+                        if (containerIds.size()) {
+                            echo("Развёрнуто ${containerIds.size()} контейнеров")
+                        } else {
+                            error("Развёрнуто ${containerIds.size()} контейнеров")
+                        }
+                    }
+                }
+            }
+        }
+        stage('Docker Test') {
+            steps {
+                echo('Начинаю тестирование...')
+                script {
+                    String result = null
+                    List<String> containerIds = null
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        echo('Тест: Перезагрузка')
+                        sh("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} restart'")
+                        sleep(10)
+                        result = shReturnStdout("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} ps -q'")
+                        containerIds = new ArrayList<>()
+                        containerIds.addAll(result.split('\n'))
+                        containerIds.remove('')
+                        if (containerIds.size()) {
+                            echo("Развёрнуто ${containerIds.size()} контейнеров")
+                        } else {
+                            error("Развёрнуто ${containerIds.size()} контейнеров")
+                        }
+                    }
+                }
+
+                echo('Завершаю тестирование...')
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        sh("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' '${user}@${host}' 'docker compose --project-directory ${docker_compose_directory_path} down'")
+                    }
+                }
+            }
+        }
+        stage('Docker Save') {
+            steps {
+                cleanWs(patterns: [[pattern: "${imageName}:*.tar", type: 'INCLUDE']])
+                echo('Экспортирую контейнер...')
+                script {
+                    withCredentials([string(credentialsId: host_credentials, variable: 'host'), sshUserPrivateKey(credentialsId: ssh_credentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
+                        String pid = shReturnStdout("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' -o 'StreamLocalBindUnlink=yes' -N -L '/var/run/docker.sock:/var/run/docker.sock' '${user}@${host}' & echo \"\$!\"")
+                        sleep(10)
+                        sh("docker save \"${imageFullName}\" > '${imageFullName}.tar'")
+                        sh("kill ${pid}")
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs(deleteDirs: true, patterns: [[pattern: 'wordpress*', type: 'INCLUDE'], [pattern: '*.html', type: 'EXCLUDE'], [pattern: '*.tar', type: 'EXCLUDE'], [pattern: '*.tar.gz', type: 'EXCLUDE'], [pattern: '*.tar.xz', type: 'EXCLUDE'], [pattern: '*.zip', type: 'EXCLUDE']])
+        }
+    }
+}
