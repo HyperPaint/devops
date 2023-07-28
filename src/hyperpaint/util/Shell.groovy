@@ -127,13 +127,17 @@ final class Shell {
         sshUser = user
         sshIdRsa = id_rsa
 
-        code.run()
-
-        echo("Отключаю ssh от удалённого компьютера...")
-        sshActive = false
-        sshHost = null
-        sshUser = null
-        sshIdRsa = null
+        try {
+            code.run()
+        } catch (Exception e) {
+            e.printStackTrace()
+        } finally {
+            echo("Отключаю ssh от удалённого компьютера...")
+            sshActive = false
+            sshHost = null
+            sshUser = null
+            sshIdRsa = null
+        }
     }
 
     private static String getSshConnectString() {
