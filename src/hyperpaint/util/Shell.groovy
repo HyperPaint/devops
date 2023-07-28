@@ -41,6 +41,10 @@ final class Shell {
             return processExitValue == 0
         }
 
+        boolean isFailed() {
+            return processExitValue != 0
+        }
+
         String getOutput() {
             return processOutput.toString()
         }
@@ -59,7 +63,26 @@ final class Shell {
         this.jenkins = jenkins
     }
 
-    static String executeWithOutput(String command) {
+    static void shOrFail(String command) {
+        command = getSshConnectString() + command
+
+        if (jenkins != null) {
+            if (jenkins.sh(script: command, returnStatus: true) != 0) {
+                throw new RuntimeException("sh '" + command "' is failed")
+            }
+        } else {
+            System.out.print(command)
+            ProcessBuilder processBuilder = new ProcessBuilder(command)
+            Process process = processBuilder.start()
+            OutputInterceptor outputInterceptor = new OutputInterceptor(process.getInputStream(), System.out)
+            outputInterceptor.setExitValue(process.exitValue())
+            if (outputInterceptor.isFailed()) {
+                throw new RuntimeException("sh '" + command "' is failed")
+            }
+        }
+    }
+
+    static String shWithOutput(String command) {
         command = getSshConnectString() + command
 
         if (jenkins != null) {
@@ -74,7 +97,7 @@ final class Shell {
         }
     }
 
-    static boolean executeWithStatus(String command) {
+    static boolean shWithStatus(String command) {
         command = getSshConnectString() + command
 
         if (jenkins != null) {
@@ -97,15 +120,15 @@ final class Shell {
         }
     }
 
-    static void sshConnect(String host, String user, String id_rsa) {
+    static void sshConnect(String host, String user, String id_rsa, Runnable code) {
         echo("Подключаюсь к удалённому компьютеру по ssh...")
         sshActive = true
         sshHost = host
         sshUser = user
         sshIdRsa = id_rsa
-    }
 
-    static void sshDisconnect() {
+        code.run()
+
         echo("Отключаю ssh от удалённого компьютера...")
         sshActive = false
         sshHost = null
