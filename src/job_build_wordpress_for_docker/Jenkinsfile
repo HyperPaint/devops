@@ -312,7 +312,7 @@ pipeline {
                     imageVersion = regexGroup(wordpressChosenReleaseName, "([0-9\\.]+)") + "-" + env.BUILD_NUMBER
                     imageFullName = imageName + ":" + imageVersion
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                        Docker.dockerConnect(env.host, env.user, env.id_rsa, () -> {
+                        Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             if (useCache) {
                                 Docker.build(imageFullName, wordpressChosenReleaseName, true)
                             } else {
@@ -332,7 +332,7 @@ pipeline {
                     String result = null
                     List<String> containerIds = null
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa, () -> {
+                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
                             // Форматированный конфиг для скачивания
                             String dockerComposeYml = DockerCompose.config(dockerComposeProjectDirectory)
                             writeFile(file: "docker-compose.yml", text: dockerComposeYml)
@@ -361,7 +361,7 @@ pipeline {
                         String result = null
                         List<String> containerIds = null
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                            Shell.sshConnect(env.host, env.user, env.id_rsa, () -> {
+                            Shell.sshConnect(env.host, env.user, env.id_rsa, {
                                 echo("Тест: Перезагрузка")
                                 DockerCompose.restart(dockerComposeProjectDirectory)
                                 Thread.sleep(10000)
@@ -378,7 +378,7 @@ pipeline {
 
                     echo("Завершаю тестирование...")
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa, () -> {
+                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
                             DockerCompose.down(dockerComposeProjectDirectory)
                         })
                     }
@@ -393,7 +393,7 @@ pipeline {
                     if (exportImage) {
                         echo("Экспортирую образ...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                            Docker.dockerConnect(env.host, env.user, env.id_rsa, () -> {
+                            Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                                 Docker.save(imageFullName, imageFullName + ".tar")
                             })
                         }
@@ -404,7 +404,7 @@ pipeline {
                     if (deleteImage) {
                         echo("Удаляю образ...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                            Docker.dockerConnect(env.host, env.user, env.id_rsa, () -> {
+                            Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                                 Docker.rmi(imageFullName)
                             })
                         }
