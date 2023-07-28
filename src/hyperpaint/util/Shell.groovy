@@ -68,7 +68,7 @@ final class Shell {
 
         if (jenkins != null) {
             if (jenkins.sh(script: command, returnStatus: true) != 0) {
-                throw new RuntimeException("sh '" + command "' is failed")
+                throw new RuntimeException("sh '" + command + "' is failed")
             }
         } else {
             System.out.print(command)
@@ -77,7 +77,7 @@ final class Shell {
             OutputInterceptor outputInterceptor = new OutputInterceptor(process.getInputStream(), System.out)
             outputInterceptor.setExitValue(process.exitValue())
             if (outputInterceptor.isFailed()) {
-                throw new RuntimeException("sh '" + command "' is failed")
+                throw new RuntimeException("sh '" + command + "' is failed")
             }
         }
     }
