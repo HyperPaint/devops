@@ -32,8 +32,8 @@ pipeline {
                     int size = allHosts.size()
                     for (int i = 0; i < size; i++) {
                         host = allHosts.get(i)
-                        echo("Проверка ${host}")
-                        Shell.shOrFail("nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+'")
+                        Shell.echo("Проверка ${host}")
+                        Shell.echo(Shell.shWithOutput("nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+'"))
                     }
                 }
             }
