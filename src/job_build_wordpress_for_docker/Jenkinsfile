@@ -9,9 +9,10 @@ import java.util.regex.Matcher
 
 Shell.setJenkins(this)
 
-boolean doNotUseCache = params.do_not_use_cache
-boolean doNotTestImage = params.do_not_test_image
-boolean doNotSaveImage = params.do_not_save_image
+boolean useCache = params.use_cache
+boolean testImage = params.test_image
+boolean exportImage = params.export_image
+boolean deleteImage = params.delete_image
 
 String hostCredentials = env.host_credentials
 String sshCredentials = env.ssh_credentials
@@ -68,26 +69,23 @@ static String regexGroup(String text, String regex) {
 }
 
 static void downloadFile(String url, String file, Integer cacheLifetime = Integer.MAX_VALUE) {
-    assert url instanceof String
-    assert file instanceof String
-    assert cacheLifetime instanceof Integer
-
     // Поиск существующего файла
     Integer fileModifiedXSecondsAgo = Integer.MAX_VALUE
-    if (Shell.executeWithStatus("[[ -f '${file}' ]]")) {
-        fileModifiedXSecondsAgo = Shell.executeWithOutput("echo \"\$(date +%s)-\$(date -r '${file}' +%s)\" | bc").toInteger()
+    if (Shell.shWithStatus("[[ -f '${file}' ]]")) {
+        fileModifiedXSecondsAgo = Shell.shWithOutput("echo \"\$(date +%s)-\$(date -r '${file}' +%s)\" | bc").toInteger()
     }
 
-    // Проверка актуальности файла, больше суток
+    // Проверка актуальности файла
     if (fileModifiedXSecondsAgo >= cacheLifetime) {
-        Shell.executeWithStatus("wget -O '${file}' '${url}'")
+        Shell.echo("Скачиваю файл ${file}")
+        Shell.shOrFail("wget -O '${file}' '${url}'")
+    } else {
+        Shell.echo("Пропускаю скачивание файла ${file}")
     }
 }
 
 static List<String> searchText(String file, String regex) {
-    assert file instanceof String
-    assert regex instanceof String
-    String releaseLinksBuff = Shell.executeWithOutput("grep -ioE '${regex}' '${file}' | uniq | sort -r")
+    String releaseLinksBuff = Shell.shWithOutput("grep -ioE '${regex}' '${file}' | uniq | sort -r")
     List<String> releaseUrls = new ArrayList<>()
     releaseUrls.addAll(releaseLinksBuff.split('\n'))
     releaseUrls.remove('')
@@ -98,22 +96,16 @@ static List<String> searchText(String file, String regex) {
 pipeline {
     agent any
     parameters {
-        booleanParam(name: 'do_not_use_cache', defaultValue: false, description: 'Не использовать кэш')
-        booleanParam(name: 'do_not_test_image', defaultValue: false, description: 'Не тестировать образ')
-        booleanParam(name: 'do_not_save_image', defaultValue: false, description: 'Не сохранять образ')
+        booleanParam(name: "use_cache", defaultValue: true, description: "Использовать кэш")
+        booleanParam(name: "test_image", defaultValue: true, description: "Тестировать образ")
+        booleanParam(name: "export_image", defaultValue: false, description: "Экспортировать образ")
+        booleanParam(name: "delete_image", defaultValue: false, description: "Удалить образ после сборки")
     }
     stages {
-        stage('Get WordPress') {
+        stage("Получаю WordPress") {
             steps {
                 script {
-                    if (doNotUseCache) {
-                        echo('Удаляю кэш...')
-                        cleanWs(deleteDirs: true, patterns: [[pattern: 'src', type: 'EXCLUDE']])
-                    }
-                }
-
-                echo('Проверяю доступные версии WordPress...')
-                script {
+                    echo("Проверяю доступные версии WordPress...")
                     String wordpressReleasesUrl = env.wordpress
                     // Ссылка на дистрибутив или список версий?
                     if (regexFind(wordpressReleasesUrl, wordpressReleaseUrlPattern)) {
@@ -124,7 +116,11 @@ pipeline {
                     } else {
                         echo("Найден список версий WordPress")
                         // Получить файл релизов
-                        downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, cacheLifetime)
+                        if (useCache) {
+                            downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, cacheLifetime)
+                        } else {
+                            downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, -1)
+                        }
 
                         // Поиск версий в файле
                         List<String> releaseUrls = searchText(wordpressReleasesFileName, wordpressReleaseUrlPattern)
@@ -140,26 +136,29 @@ pipeline {
                         }
                     }
 
-                    echo('Скачиваю WordPress...')
                     wordpressChosenReleaseName = regexGroup(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
                     wordpressChosenReleaseFileName = regexGroup(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
-                    downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName)
-
-                    echo('Распаковываю WordPress...')
-                    if (Shell.executeWithStatus("[[ -d '${wordpressChosenReleaseName}' ]]")) {
-                        sh("rm -vrf '${wordpressChosenReleaseName}'")
+                    if (useCache) {
+                        downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName)
+                    } else {
+                        downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName, -1)
                     }
-                    sh("mkdir -v '${wordpressChosenReleaseName}'")
-                    sh("tar x -zf '${wordpressChosenReleaseFileName}' -C '${wordpressChosenReleaseName}'")
+
+                    echo("Распаковываю WordPress...")
+                    if (Shell.shWithStatus("[[ -d '${wordpressChosenReleaseName}' ]]")) {
+                        Shell.shOrFail("rm -rf '${wordpressChosenReleaseName}'")
+                    }
+                    Shell.shOrFail("mkdir -v '${wordpressChosenReleaseName}'")
+                    Shell.shOrFail("tar x -zf '${wordpressChosenReleaseFileName}' -C '${wordpressChosenReleaseName}'")
                 }
             }
         }
-        stage('Get Themes') {
+        stage('Получить темы') {
             steps {
-                echo('Удаляю предустановленные темы WordPress...')
-                sh("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
+                echo("Удаляю предустановленные темы WordPress...")
+                Shell.shOrFail("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
 
-                echo('Проверяю доступные версии тем WordPress...')
+                echo("Проверяю доступные версии тем WordPress...")
                 script {
                     String currentName
                     String currentReleasesUrl
@@ -169,18 +168,23 @@ pipeline {
                     List<String> releaseUrls
                     int size = Integer.valueOf(env.themes)
                     for (int i = 1; i <= size; i++) {
-                        currentReleasesUrl = env['theme' + i.toString()]
+                        currentReleasesUrl = env["theme" + i.toString()]
                         currentName = regexGroup(currentReleasesUrl, themeReleaseNamePattern)
 
+                        echo("Проверяю доступные версии ${currentName}...")
                         // Ссылка на дистрибутив или список версий?
                         if (regexFind(currentReleasesUrl, themeReleaseUrlPattern)) {
                             echo("Найдено 1 версий ${currentName}")
                             chosenReleaseUrl = currentReleasesUrl
                         } else {
                             // Получить файл релизов
+                            echo("Найден список версий ${currentName}")
                             currentReleasesFileName = String.format(themeReleasesFileName, currentName)
-                            echo("Проверяю доступные версии ${currentName}...")
-                            downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
+                            if (useCache) {
+                                downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
+                            } else {
+                                downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
+                            }
 
                             // Поиск версий в файле
                             releaseUrls = searchText(currentReleasesFileName, String.format(themeReleaseUrlPattern, currentName))
@@ -197,22 +201,25 @@ pipeline {
                             }
                         }
 
-                        echo("Скачиваю ${currentName}...")
                         chosenReleaseFileName = regexGroup(chosenReleaseUrl, String.format(themeReleaseFileNamePattern, currentName))
-                        downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                        if (useCache) {
+                            downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                        } else {
+                            downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
+                        }
 
                         echo("Распаковываю ${currentName}...")
-                        sh("unzip -q '${chosenReleaseFileName}' -d '${wordpressChosenReleaseName}/wordpress/wp-content/themes/'")
+                        Shell.shOrFail("unzip -q '${chosenReleaseFileName}' -d '${wordpressChosenReleaseName}/wordpress/wp-content/themes/'")
                     }
                 }
             }
         }
-        stage('Get Plugins') {
+        stage("Получить плагины") {
             steps {
-                echo('Удаляю предустановленные плагины WordPress...')
-                sh("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
+                echo("Удаляю предустановленные плагины WordPress...")
+                Shell.shOrFail("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
 
-                echo('Проверяю доступные версии плагинов WordPress...')
+                echo("Проверяю доступные версии плагинов WordPress...")
                 script {
                     String currentName
                     String currentReleasesUrl
@@ -222,18 +229,23 @@ pipeline {
                     List<String> releaseUrls
                     int size = Integer.valueOf(env.plugins)
                     for (int i = 1; i <= size; i++) {
-                        currentReleasesUrl = env['plugin' + i.toString()]
+                        currentReleasesUrl = env["plugin" + i.toString()]
                         currentName = regexGroup(currentReleasesUrl, pluginReleaseNamePattern)
 
+                        echo("Проверяю доступные версии ${currentName}...")
                         // Ссылка на дистрибутив или список версий?
                         if (regexFind(currentReleasesUrl, pluginReleaseUrlPattern)) {
                             echo("Найдено 1 версий ${currentName}")
                             chosenReleaseUrl = currentReleasesUrl
                         } else {
                             // Получить файл релизов
+                            echo("Найден список версий ${currentName}")
                             currentReleasesFileName = String.format(pluginReleasesFileName, currentName)
-                            echo("Проверяю доступные версии ${currentName}...")
-                            downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
+                            if (useCache) {
+                                downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
+                            } else {
+                                downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
+                            }
 
                             // Поиск версий в файле
                             releaseUrls = searchText(currentReleasesFileName, String.format(pluginReleaseUrlPattern, currentName))
@@ -250,57 +262,61 @@ pipeline {
                             }
                         }
 
-                        echo("Скачиваю ${currentName}...")
                         chosenReleaseFileName = regexGroup(chosenReleaseUrl, String.format(pluginReleaseFileNamePattern, currentName))
-                        downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                        if (useCache) {
+                            downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                        } else {
+                            downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
+                        }
 
                         echo("Распаковываю ${currentName}...")
-                        sh("unzip -q '${chosenReleaseFileName}' -d '${wordpressChosenReleaseName}/wordpress/wp-content/plugins/'")
+                        Shell.shOrFail("unzip -q '${chosenReleaseFileName}' -d '${wordpressChosenReleaseName}/wordpress/wp-content/plugins/'")
                     }
                 }
             }
         }
-        stage('Configure WordPress') {
+        stage('Настроить WordPress') {
             steps {
-                echo('Настраиваю WordPress...')
+                echo("Настраиваю WordPress...")
+                String file = "${wordpressChosenReleaseName}/wordpress/wp-config-sample.php"
                 // Добавить дополнительную конфигурацию в начало файла с заменой <?php
-                sh("sed -i 's/<?php//g' '${wordpressChosenReleaseName}/wordpress/wp-config-sample.php'")
-                sh("cat \"job_build_wordpress_for_docker/src/wordpress/wp-config.php\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\" | tee \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\" 1>/dev/null")
+                Shell.shOrFail("sed -i 's/<?php//g' '${file}'")
+                Shell.shOrFail("cat \"job_build_wordpress_for_docker/src/wordpress/wp-config.php\" \"${file}'\" | tee \"${file}'\" 1>/dev/null")
                 // Параметризовать файл - параметры базы данных
-                sh("sed -i \"s/define( 'DB_NAME', 'database_name_here' );/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'DB_USER', 'username_here' );/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'DB_PASSWORD', 'password_here' );/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'DB_HOST', 'localhost' );/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'DB_CHARSET', 'utf8' );/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'DB_COLLATE', '' );/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                Shell.shOrFail("sed -i \"s/define( 'DB_NAME', 'database_name_here' );/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'DB_USER', 'username_here' );/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'DB_PASSWORD', 'password_here' );/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'DB_HOST', 'localhost' );/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'DB_CHARSET', 'utf8' );/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'DB_COLLATE', '' );/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${file}'\"")
                 // Параметризовать файл - уникальные ключи и соли для аутентификации
-                sh("sed -i \"s/define( 'AUTH_KEY',         'put your unique phrase here' );/define( 'AUTH_KEY',         '\\\$AUTH_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );/define( 'SECURE_AUTH_KEY',  '\\\$SECURE_AUTH_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'LOGGED_IN_KEY',    'put your unique phrase here' );/define( 'LOGGED_IN_KEY',    '\\\$LOGGED_IN_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'NONCE_KEY',        'put your unique phrase here' );/define( 'NONCE_KEY',        '\\\$NONCE_KEY' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'AUTH_SALT',        'put your unique phrase here' );/define( 'AUTH_SALT',        '\\\$AUTH_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'LOGGED_IN_SALT',   'put your unique phrase here' );/define( 'LOGGED_IN_SALT',   '\\\$LOGGED_IN_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
-                sh("sed -i \"s/define( 'NONCE_SALT',       'put your unique phrase here' );/define( 'NONCE_SALT',       '\\\$NONCE_SALT' );/g\" \"${wordpressChosenReleaseName}/wordpress/wp-config-sample.php\"")
+                Shell.shOrFail("sed -i \"s/define( 'AUTH_KEY',\\s*'put your unique phrase here' );/define( 'AUTH_KEY', '\\\$AUTH_KEY' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'SECURE_AUTH_KEY',\\s*'put your unique phrase here' );/define( 'SECURE_AUTH_KEY', '\\\$SECURE_AUTH_KEY' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'LOGGED_IN_KEY',\\s*'put your unique phrase here' );/define( 'LOGGED_IN_KEY', '\\\$LOGGED_IN_KEY' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'NONCE_KEY',\\s*'put your unique phrase here' );/define( 'NONCE_KEY', '\\\$NONCE_KEY' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'AUTH_SALT',\\s*'put your unique phrase here' );/define( 'AUTH_SALT', '\\\$AUTH_SALT' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'SECURE_AUTH_SALT',\\s*'put your unique phrase here' );/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'LOGGED_IN_SALT',\\s*'put your unique phrase here' );/define( 'LOGGED_IN_SALT', '\\\$LOGGED_IN_SALT' );/g\" \"${file}'\"")
+                Shell.shOrFail("sed -i \"s/define( 'NONCE_SALT',\\s*'put your unique phrase here' );/define( 'NONCE_SALT', '\\\$NONCE_SALT' );/g\" \"${file}'\"")
             }
         }
         stage('Docker Build') {
             steps {
-                echo('Копирую зависимые файлы контейнера...')
-                sh("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressChosenReleaseName}/'")
-                sh("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressChosenReleaseName}/'")
-                sh("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressChosenReleaseName}/'")
+                echo("Копирую зависимые файлы контейнера...")
+                Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressChosenReleaseName}/'")
+                Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressChosenReleaseName}/'")
+                Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressChosenReleaseName}/'")
 
-                echo('Собираю контейнер...')
                 script {
-                    imageVersion = regexGroup(wordpressChosenReleaseName, "([0-9\\.]+)") + '-' + env.BUILD_NUMBER
-                    imageFullName = imageName + ':' + imageVersion
-                    withCredentials([string(credentialsId: hostCredentials, variable: 'host'), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                        Docker.executeRemote(env.host, env.user, env.id_rsa, {
-                            if (doNotUseCache) {
-                                Docker.build(imageFullName, wordpressChosenReleaseName, false)
+                    echo("Собираю контейнер...")
+                    imageVersion = regexGroup(wordpressChosenReleaseName, "([0-9\\.]+)") + "-" + env.BUILD_NUMBER
+                    imageFullName = imageName + ":" + imageVersion
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Docker.dockerConnect(env.host, env.user, env.id_rsa, () -> {
+                            if (useCache) {
+                                Docker.build(imageFullName, wordpressChosenReleaseName, true)
                             } else {
-                                Docker.build(imageFullName, wordpressChosenReleaseName)
+                                Docker.build(imageFullName, wordpressChosenReleaseName, false)
                             }
                             // latest
                             Docker.tag(imageFullName, imageName)
@@ -309,18 +325,17 @@ pipeline {
                 }
             }
         }
-        stage('Docker Deploy') {
+        stage("Docker Deploy") {
             steps {
-                echo('Развёртываю контейнер...')
+                echo("Развёртываю контейнер...")
                 script {
                     String result = null
                     List<String> containerIds = null
-                    withCredentials([string(credentialsId: hostCredentials, variable: 'host'), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa)
-                        try {
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Shell.sshConnect(env.host, env.user, env.id_rsa, () -> {
                             // Форматированный конфиг для скачивания
                             String dockerComposeYml = DockerCompose.config(dockerComposeProjectDirectory)
-                            writeFile(file: 'docker-compose.yml', text: dockerComposeYml)
+                            writeFile(file: "docker-compose.yml", text: dockerComposeYml)
 
                             // Деплой
                             DockerCompose.down(dockerComposeProjectDirectory)
@@ -330,77 +345,67 @@ pipeline {
 
                             result = DockerCompose.ps(dockerComposeProjectDirectory, true)
                             containerIds = new ArrayList<>()
-                            containerIds.addAll(result.split('\n'))
-                            containerIds.remove('')
+                            containerIds.addAll(result.split("\n"))
+                            containerIds.remove("")
                             echo("Развёрнуто ${containerIds.size()} контейнеров")
-                        } catch (Exception e) {
-                            error(e.printStackTrace())
-                        } finally {
-                            Shell.sshDisconnect()
-                        }
+                        })
                     }
                 }
             }
         }
-        stage('Docker Test') {
+        stage("Docker Test") {
             steps {
                 script {
-                    if (!doNotTestImage) {
-                        echo('Начинаю тестирование...')
+                    if (testImage) {
+                        echo("Начинаю тестирование...")
                         String result = null
                         List<String> containerIds = null
-                        withCredentials([string(credentialsId: hostCredentials, variable: 'host'), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                            Shell.sshConnect(env.host, env.user, env.id_rsa)
-                            try {
-                                echo('Тест: Перезагрузка')
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Shell.sshConnect(env.host, env.user, env.id_rsa, () -> {
+                                echo("Тест: Перезагрузка")
                                 DockerCompose.restart(dockerComposeProjectDirectory)
                                 Thread.sleep(10000)
                                 result = DockerCompose.ps(dockerComposeProjectDirectory, true)
                                 containerIds = new ArrayList<>()
-                                containerIds.addAll(result.split('\n'))
-                                containerIds.remove('')
+                                containerIds.addAll(result.split("\n"))
+                                containerIds.remove("")
                                 echo("Развёрнуто ${containerIds.size()} контейнеров")
-                            } catch (Exception e) {
-                                error(e.printStackTrace())
-                            } finally {
-                                Shell.sshDisconnect()
-                            }
-
-                            echo('Завершаю тестирование...')
+                            })
                         }
+                    } else {
+                        echo("Пропускаю тестирование...")
                     }
-                }
 
-                script {
-                    withCredentials([string(credentialsId: hostCredentials, variable: 'host'), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa)
-                        try {
+                    echo("Завершаю тестирование...")
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Shell.sshConnect(env.host, env.user, env.id_rsa, () -> {
                             DockerCompose.down(dockerComposeProjectDirectory)
-                        } catch (Exception e) {
-                            error(e.printStackTrace())
-                        } finally {
-                            Shell.sshDisconnect()
-                        }
+                        })
                     }
                 }
             }
         }
-        stage('Docker Save') {
+        stage("Docker Save") {
             steps {
-                cleanWs(patterns: [[pattern: "${imageName}:*.tar", type: 'INCLUDE']])
+                cleanWs(patterns: [[pattern: "${imageName}:*.tar", type: "INCLUDE"]])
+
                 script {
-                    if (doNotSaveImage) {
-                        echo('Удаляю образ...')
-                        withCredentials([string(credentialsId: hostCredentials, variable: 'host'), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                            Docker.executeRemote(env.host, env.user, env.id_rsa, {
-                                Docker.rmi(imageFullName)
+                    if (exportImage) {
+                        echo("Экспортирую образ...")
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Docker.dockerConnect(env.host, env.user, env.id_rsa, () -> {
+                                Docker.save(imageFullName, imageFullName + ".tar")
                             })
                         }
-                    } else {
-                        echo('Экспортирую образ...')
-                        withCredentials([string(credentialsId: hostCredentials, variable: 'host'), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: 'id_rsa', usernameVariable: 'user')]) {
-                            Docker.executeRemote(env.host, env.user, env.id_rsa, {
-                                Docker.save(imageFullName, imageFullName + ".tar")
+                    }
+                }
+
+                script {
+                    if (deleteImage) {
+                        echo("Удаляю образ...")
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Docker.dockerConnect(env.host, env.user, env.id_rsa, () -> {
+                                Docker.rmi(imageFullName)
                             })
                         }
                     }
@@ -410,7 +415,13 @@ pipeline {
     }
     post {
         always {
-            cleanWs(deleteDirs: true, patterns: [[pattern: 'wordpress*', type: 'INCLUDE'], [pattern: '*.html', type: 'EXCLUDE'], [pattern: '*.tar', type: 'EXCLUDE'], [pattern: '*.tar.gz', type: 'EXCLUDE'], [pattern: '*.tar.xz', type: 'EXCLUDE'], [pattern: '*.zip', type: 'EXCLUDE'], [pattern: 'src', type: 'EXCLUDE']])
+            cleanWs(deleteDirs: true, patterns: [[pattern: "wordpress*", type: "INCLUDE"],
+                                                 [pattern: "*.html", type: "EXCLUDE"],
+                                                 [pattern: "*.tar", type: "EXCLUDE"],
+                                                 [pattern: "*.tar.gz", type: "EXCLUDE"],
+                                                 [pattern: "*.tar.xz", type: "EXCLUDE"],
+                                                 [pattern: "*.zip", type: "EXCLUDE"],
+                                                 [pattern: "src", type: "EXCLUDE"]])
         }
     }
 }
