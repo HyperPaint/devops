@@ -3,6 +3,8 @@ package job_check_port
 @Library("devops@main")
 import hyperpaint.util.Shell
 
+Shell.setJenkins(this)
+
 String hosts = params.hosts
 String ports = params.ports
 
