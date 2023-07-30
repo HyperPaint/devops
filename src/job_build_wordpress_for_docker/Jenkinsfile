@@ -1,19 +1,32 @@
 package job_build_wordpress_for_docker
 
-@Library("devops@main")
+@Library("devops@test")
 import hyperpaint.util.Docker
 import hyperpaint.util.DockerCompose
+import hyperpaint.util.Regex
 import hyperpaint.util.Shell
-
-import java.util.regex.Matcher
+import hyperpaint.util.Util
 
 Shell.setJenkins(this)
 
-boolean useCache = params.use_cache
-boolean testImage = params.test_image
-boolean exportImage = params.export_image
-boolean deleteImage = params.delete_image
+/**
+ * Получение параметров, проверка и назначение значений по-умолчанию
+ */
+Boolean useCache = params.use_cache
+Boolean deployImage = params.deploy_image
+Boolean testImage = params.test_image
+Boolean exportImage = params.export_image
+Boolean deleteImage = params.delete_image
 
+if (useCache == null) useCache = true
+if (deployImage == null) useCache = true
+if (testImage == null) useCache = true
+if (exportImage == null) useCache = false
+if (deleteImage == null) useCache = false
+
+/**
+ * Получение переменных окружения, которые должны быть заданы
+ */
 String hostCredentials = env.host_credentials
 String sshCredentials = env.ssh_credentials
 String dockerComposeProjectDirectory = env.docker_compose_project_directory
@@ -30,17 +43,37 @@ String pluginReleaseUrlPattern = env.plugin_url_pattern
 String pluginReleaseNamePattern = env.plugin_name_pattern
 String pluginReleaseFileNamePattern = env.plugin_file_name_pattern
 
+String noEnvString = "Переменная окружения '%s' не установлена"
+if (hostCredentials == null) throw new NullPointerException(String.format(noEnvString, "host_credentials"))
+if (sshCredentials == null) throw new NullPointerException(String.format(noEnvString, "ssh_credentials"))
+if (dockerComposeProjectDirectory == null) throw new NullPointerException(String.format(noEnvString, "docker_compose_project_directory"))
+
+if (wordpressReleaseUrlPattern == null) throw new NullPointerException(String.format(noEnvString, "wordpress_url_pattern"))
+if (wordpressReleaseNamePattern == null) throw new NullPointerException(String.format(noEnvString, "wordpress_name_pattern"))
+if (wordpressReleaseFileNamePattern == null) throw new NullPointerException(String.format(noEnvString, "wordpress_file_name_pattern"))
+
+if (themeReleaseUrlPattern == null) throw new NullPointerException(String.format(noEnvString, "theme_url_pattern"))
+if (themeReleaseNamePattern == null) throw new NullPointerException(String.format(noEnvString, "theme_name_pattern"))
+if (themeReleaseFileNamePattern == null) throw new NullPointerException(String.format(noEnvString, "theme_file_name_pattern"))
+
+if (pluginReleaseUrlPattern == null) throw new NullPointerException(String.format(noEnvString, "plugin_url_pattern"))
+if (pluginReleaseNamePattern == null) throw new NullPointerException(String.format(noEnvString, "plugin_name_pattern"))
+if (pluginReleaseFileNamePattern == null) throw new NullPointerException(String.format(noEnvString, "plugin_file_name_pattern"))
+
+/**
+ * Переменные сценария
+ */
 String imageName = "blog"
 String imageVersion = null
 String imageFullName = null
-
-// Сутки
-int cacheLifetime = 86400
 
 String releasesFile = "releases"
 String wordpressReleasesFileName = "${releasesFile}-wordpress.html"
 String themeReleasesFileName = "${releasesFile}-theme-%s.html"
 String pluginReleasesFileName = "${releasesFile}-plugin-%s.html"
+
+// Сутки в секундах
+int cacheLifetime = 86400
 
 // Ссылка на дистрибутив
 String wordpressChosenReleaseUrl = null
@@ -49,47 +82,12 @@ String wordpressChosenReleaseName = null
 // Файл дистрибутива
 String wordpressChosenReleaseFileName = null
 
-static boolean regexFind(String text, String regex) {
-    Matcher matcher = (text =~ regex)
-    return matcher.find()
-}
-
-static String regexGroup(String text, String regex) {
-    Matcher matcher = (text =~ regex)
-    matcher.find()
-    try {
-        return matcher.group(1)
-    }
-    catch (IllegalStateException ignored) {
-        error("Не удалось найти совпадение по регулярному выражению ${regex}\n${text}")
-    }
-    catch (IndexOutOfBoundsException ignored) {
-        error("Не удалось найти группу по регулярному выражению ${regex}\n${text}")
-    }
-}
-
-static void downloadFile(String url, String file, Integer cacheLifetime = Integer.MAX_VALUE) {
-    // Поиск существующего файла
-    Integer fileModifiedXSecondsAgo = Integer.MAX_VALUE
-    if (Shell.shWithStatus("[[ -f '${file}' ]]")) {
-        fileModifiedXSecondsAgo = Shell.shWithOutput("echo \"\$(date +%s)-\$(date -r '${file}' +%s)\" | bc").toInteger()
-    }
-
-    // Проверка актуальности файла
-    if (fileModifiedXSecondsAgo >= cacheLifetime) {
-        Shell.echo("Скачиваю файл ${file}")
-        Shell.shOrFail("wget -O '${file}' '${url}'")
-    } else {
-        Shell.echo("Пропускаю скачивание файла ${file}")
-    }
-}
-
 static List<String> searchText(String file, String regex) {
-    String releaseLinksBuff = Shell.shWithOutput("grep -ioE '${regex}' '${file}' | uniq | sort -r")
-    List<String> releaseUrls = new ArrayList<>()
-    releaseUrls.addAll(releaseLinksBuff.split('\n'))
-    releaseUrls.remove('')
-    return releaseUrls
+    String buff = Shell.shWithOutput("grep -ioE '${regex}' '${file}' | uniq | sort -r")
+    List<String> buffList = new ArrayList<>()
+    buffList.addAll(buff.split('\n'))
+    buffList.remove('')
+    return buffList
 }
 
 //noinspection GroovyAssignabilityCheck
@@ -97,9 +95,14 @@ pipeline {
     agent any
     parameters {
         booleanParam(name: "use_cache", defaultValue: true, description: "Использовать кэш")
+        booleanParam(name: "deploy_image", defaultValue: true, description: "Развёртывать образ")
         booleanParam(name: "test_image", defaultValue: true, description: "Тестировать образ")
         booleanParam(name: "export_image", defaultValue: false, description: "Экспортировать образ")
         booleanParam(name: "delete_image", defaultValue: false, description: "Удалить образ после сборки")
+    }
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
     stages {
         stage("Получаю WordPress") {
@@ -107,19 +110,21 @@ pipeline {
                 script {
                     echo("Проверяю доступные версии WordPress...")
                     String wordpressReleasesUrl = env.wordpress
+                    assert(wordpressReleasesUrl instanceof String)
+
                     // Ссылка на дистрибутив или список версий?
-                    if (regexFind(wordpressReleasesUrl, wordpressReleaseUrlPattern)) {
+                    if (Regex.find(wordpressReleasesUrl, wordpressReleaseUrlPattern)) {
                         echo("Найдено 1 версий WordPress")
                         wordpressChosenReleaseUrl = wordpressReleasesUrl
-                        wordpressChosenReleaseName = regexGroup(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
-                        wordpressChosenReleaseFileName = regexGroup(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
+                        wordpressChosenReleaseName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
+                        wordpressChosenReleaseFileName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
                     } else {
                         echo("Найден список версий WordPress")
                         // Получить файл релизов
                         if (useCache) {
-                            downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, cacheLifetime)
+                            Util.downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, cacheLifetime)
                         } else {
-                            downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, -1)
+                            Util.downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, -1)
                         }
 
                         // Поиск версий в файле
@@ -136,12 +141,12 @@ pipeline {
                         }
                     }
 
-                    wordpressChosenReleaseName = regexGroup(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
-                    wordpressChosenReleaseFileName = regexGroup(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
+                    wordpressChosenReleaseName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
+                    wordpressChosenReleaseFileName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
                     if (useCache) {
-                        downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName)
+                        Util.downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName)
                     } else {
-                        downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName, -1)
+                        Util.downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName, -1)
                     }
 
                     echo("Распаковываю WordPress...")
@@ -153,43 +158,39 @@ pipeline {
                 }
             }
         }
-        stage('Получить темы') {
+        stage('Получаю темы') {
             steps {
                 script {
                     echo("Удаляю предустановленные темы WordPress...")
                     Shell.shOrFail("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
-                }
 
-                echo("Проверяю доступные версии тем WordPress...")
-                script {
-                    String currentName
-                    String currentReleasesUrl
-                    String currentReleasesFileName
-                    String chosenReleaseUrl = null
-                    String chosenReleaseFileName
-                    List<String> releaseUrls
-                    int size = Integer.valueOf(env.themes)
+                    echo("Проверяю доступные версии тем WordPress...")
+                    String sizeString = env.themes
+                    assert(sizeString instanceof String)
+                    int size = Integer.valueOf(sizeString)
                     for (int i = 1; i <= size; i++) {
-                        currentReleasesUrl = env["theme" + i.toString()]
-                        currentName = regexGroup(currentReleasesUrl, themeReleaseNamePattern)
+                        String currentReleasesUrl = env["theme" + i.toString()]
+                        assert(currentReleasesUrl instanceof String)
+                        String currentName = Regex.group(currentReleasesUrl, themeReleaseNamePattern)
 
                         echo("Проверяю доступные версии ${currentName}...")
                         // Ссылка на дистрибутив или список версий?
-                        if (regexFind(currentReleasesUrl, themeReleaseUrlPattern)) {
+                        String chosenReleaseUrl = null
+                        if (Regex.find(currentReleasesUrl, themeReleaseUrlPattern)) {
                             echo("Найдено 1 версий ${currentName}")
                             chosenReleaseUrl = currentReleasesUrl
                         } else {
                             // Получить файл релизов
                             echo("Найден список версий ${currentName}")
-                            currentReleasesFileName = String.format(themeReleasesFileName, currentName)
+                            String currentReleasesFileName = String.format(themeReleasesFileName, currentName)
                             if (useCache) {
-                                downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
+                                Util.downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
                             } else {
-                                downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
+                                Util.downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
                             }
 
                             // Поиск версий в файле
-                            releaseUrls = searchText(currentReleasesFileName, String.format(themeReleaseUrlPattern, currentName))
+                            List<String> releaseUrls = searchText(currentReleasesFileName, String.format(themeReleaseUrlPattern, currentName))
                             if (releaseUrls.size()) {
                                 // Выбор версии
                                 echo("Найдено ${releaseUrls.size()} версий ${currentName}")
@@ -203,11 +204,11 @@ pipeline {
                             }
                         }
 
-                        chosenReleaseFileName = regexGroup(chosenReleaseUrl, String.format(themeReleaseFileNamePattern, currentName))
+                        String chosenReleaseFileName = Regex.group(chosenReleaseUrl, String.format(themeReleaseFileNamePattern, currentName))
                         if (useCache) {
-                            downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName)
                         } else {
-                            downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
+                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
                         }
 
                         echo("Распаковываю ${currentName}...")
@@ -216,43 +217,39 @@ pipeline {
                 }
             }
         }
-        stage("Получить плагины") {
+        stage("Получаю плагины") {
             steps {
                 script {
                     echo("Удаляю предустановленные плагины WordPress...")
                     Shell.shOrFail("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
-                }
 
-                echo("Проверяю доступные версии плагинов WordPress...")
-                script {
-                    String currentName
-                    String currentReleasesUrl
-                    String currentReleasesFileName
-                    String chosenReleaseUrl = null
-                    String chosenReleaseFileName
-                    List<String> releaseUrls
-                    int size = Integer.valueOf(env.plugins)
+                    echo("Проверяю доступные версии плагинов WordPress...")
+                    String sizeString = env.plugins
+                    assert(sizeString instanceof String)
+                    int size = Integer.valueOf(sizeString)
                     for (int i = 1; i <= size; i++) {
-                        currentReleasesUrl = env["plugin" + i.toString()]
-                        currentName = regexGroup(currentReleasesUrl, pluginReleaseNamePattern)
+                        String currentReleasesUrl = env["plugin" + i.toString()]
+                        assert(currentReleasesUrl instanceof String)
+                        String currentName = Regex.group(currentReleasesUrl, pluginReleaseNamePattern)
 
                         echo("Проверяю доступные версии ${currentName}...")
                         // Ссылка на дистрибутив или список версий?
-                        if (regexFind(currentReleasesUrl, pluginReleaseUrlPattern)) {
+                        String chosenReleaseUrl = null
+                        if (Regex.find(currentReleasesUrl, pluginReleaseUrlPattern)) {
                             echo("Найдено 1 версий ${currentName}")
                             chosenReleaseUrl = currentReleasesUrl
                         } else {
                             // Получить файл релизов
                             echo("Найден список версий ${currentName}")
-                            currentReleasesFileName = String.format(pluginReleasesFileName, currentName)
+                            String currentReleasesFileName = String.format(pluginReleasesFileName, currentName)
                             if (useCache) {
-                                downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
+                                Util.downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
                             } else {
-                                downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
+                                Util.downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
                             }
 
                             // Поиск версий в файле
-                            releaseUrls = searchText(currentReleasesFileName, String.format(pluginReleaseUrlPattern, currentName))
+                            List<String> releaseUrls = searchText(currentReleasesFileName, String.format(pluginReleaseUrlPattern, currentName))
                             if (releaseUrls.size()) {
                                 // Выбор версии
                                 echo("Найдено ${releaseUrls.size()} версий ${currentName}")
@@ -266,11 +263,11 @@ pipeline {
                             }
                         }
 
-                        chosenReleaseFileName = regexGroup(chosenReleaseUrl, String.format(pluginReleaseFileNamePattern, currentName))
+                        String chosenReleaseFileName = Regex.group(chosenReleaseUrl, String.format(pluginReleaseFileNamePattern, currentName))
                         if (useCache) {
-                            downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName)
                         } else {
-                            downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
+                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
                         }
 
                         echo("Распаковываю ${currentName}...")
@@ -279,7 +276,7 @@ pipeline {
                 }
             }
         }
-        stage('Настроить WordPress') {
+        stage('Настраиваю WordPress') {
             steps {
                 script {
                     echo("Настраиваю WordPress...")
@@ -313,11 +310,11 @@ pipeline {
                     Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressChosenReleaseName}/'")
                     Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressChosenReleaseName}/'")
                     Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressChosenReleaseName}/'")
-                }
 
-                script {
                     echo("Собираю контейнер...")
-                    imageVersion = regexGroup(wordpressChosenReleaseName, "([0-9\\.]+)") + "-" + env.BUILD_NUMBER
+                    String BuildNumber = env.BUILD_NUMBER
+                    assert(BuildNumber instanceof String)
+                    imageVersion = Regex.group(wordpressChosenReleaseName, "([0-9\\.]+)") + "-" + BuildNumber
                     imageFullName = imageName + ":" + imageVersion
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
@@ -330,85 +327,92 @@ pipeline {
                             Docker.tag(imageFullName, imageName)
                         })
                     }
+
+                    Shell.shOrFail("rm -rf '${wordpressChosenReleaseName}/'")
                 }
             }
         }
         stage("Docker Deploy") {
             steps {
                 script {
-                    echo("Развёртываю контейнер...")
-                    String result = null
-                    List<String> containerIds = null
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
-                            // Форматированный конфиг для скачивания
-                            String dockerComposeYml = DockerCompose.config(dockerComposeProjectDirectory)
-                            writeFile(file: "docker-compose.yml", text: dockerComposeYml)
-
-                            // Деплой
-                            DockerCompose.down(dockerComposeProjectDirectory)
-                            DockerCompose.up(dockerComposeProjectDirectory)
-                            Thread.sleep(10000)
-                            DockerCompose.logs(dockerComposeProjectDirectory)
-
-                            result = DockerCompose.ps(dockerComposeProjectDirectory, true)
-                            containerIds = new ArrayList<>()
-                            containerIds.addAll(result.split("\n"))
-                            containerIds.remove("")
-                            echo("Развёрнуто ${containerIds.size()} контейнеров")
-                        })
-                    }
-                }
-            }
-        }
-        stage("Docker Test") {
-            steps {
-                script {
-                    if (testImage) {
-                        echo("Начинаю тестирование...")
-                        String result = null
-                        List<String> containerIds = null
+                    if (deployImage) {
+                        echo("Развёртываю контейнер...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Shell.sshConnect(env.host, env.user, env.id_rsa, {
-                                echo("Тест: Перезагрузка")
-                                DockerCompose.restart(dockerComposeProjectDirectory)
+                                // Форматированный конфиг для скачивания
+                                String dockerComposeYml = DockerCompose.config(dockerComposeProjectDirectory)
+                                writeFile(file: "docker-compose.yml", text: dockerComposeYml)
+
+                                // Деплой
+                                DockerCompose.down(dockerComposeProjectDirectory)
+                                DockerCompose.up(dockerComposeProjectDirectory)
                                 Thread.sleep(10000)
-                                result = DockerCompose.ps(dockerComposeProjectDirectory, true)
-                                containerIds = new ArrayList<>()
+                                Shell.echo(DockerCompose.logs(dockerComposeProjectDirectory))
+
+                                String result = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                List<String> containerIds = new ArrayList<>()
                                 containerIds.addAll(result.split("\n"))
                                 containerIds.remove("")
                                 echo("Развёрнуто ${containerIds.size()} контейнеров")
                             })
                         }
                     } else {
-                        echo("Пропускаю тестирование...")
+                        echo("Пропускаю развёртывание...")
                     }
-
-                    echo("Завершаю тестирование...")
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
-                            DockerCompose.down(dockerComposeProjectDirectory)
-                        })
+                }
+            }
+        }
+        stage("Docker Test && Down") {
+            steps {
+                script {
+                    try {
+                        if (deployImage && testImage) {
+                            echo("Начинаю тестирование...")
+                            withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                                Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                                    echo("Тест: Перезагрузка")
+                                    DockerCompose.restart(dockerComposeProjectDirectory)
+                                    Thread.sleep(10000)
+                                    String result = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                    List<String> containerIds = new ArrayList<>()
+                                    containerIds.addAll(result.split("\n"))
+                                    containerIds.remove("")
+                                    echo("Развёрнуто ${containerIds.size()} контейнеров")
+                                })
+                            }
+                        } else {
+                            echo("Пропускаю тестирование...")
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace()
+                    } finally {
+                        echo("Останавливаю контейнер...")
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                                DockerCompose.down(dockerComposeProjectDirectory)
+                            })
+                        }
                     }
                 }
             }
         }
         stage("Docker Save") {
             steps {
-                cleanWs(patterns: [[pattern: "${imageName}:*.tar", type: "INCLUDE"]])
-
                 script {
                     if (exportImage) {
                         echo("Экспортирую образ...")
+                        // Удаление прошлой сборки. Расширяется только без кавычек
+                        if (Shell.shWithStatus("[[ -f ${imageName}:*.tar ]]")) {
+                            Shell.shOrFail("rm -f ${imageName}:*.tar")
+                        }
+                        // Экспорт
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                                 Docker.save(imageFullName, imageFullName + ".tar")
                             })
                         }
                     }
-                }
 
-                script {
                     if (deleteImage) {
                         echo("Удаляю образ...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
@@ -419,17 +423,6 @@ pipeline {
                     }
                 }
             }
-        }
-    }
-    post {
-        always {
-            cleanWs(deleteDirs: true, patterns: [[pattern: "wordpress*", type: "INCLUDE"],
-                                                 [pattern: "*.html", type: "EXCLUDE"],
-                                                 [pattern: "*.tar", type: "EXCLUDE"],
-                                                 [pattern: "*.tar.gz", type: "EXCLUDE"],
-                                                 [pattern: "*.tar.xz", type: "EXCLUDE"],
-                                                 [pattern: "*.zip", type: "EXCLUDE"],
-                                                 [pattern: "src", type: "EXCLUDE"]])
         }
     }
 }

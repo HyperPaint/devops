@@ -114,13 +114,25 @@ final class Shell {
 
     static void echo(String text) {
         if (jenkins != null) {
-            return jenkins.echo(text)
+            jenkins.echo(text)
         } else {
             System.out.println(text)
         }
     }
 
+    static void error(String text) {
+        if (jenkins != null) {
+            jenkins.error(text)
+        } else {
+            throw new RuntimeException(text)
+        }
+    }
+
     static void sshConnect(String host, String user, String id_rsa, Runnable code) {
+        assert(host instanceof String)
+        assert(user instanceof String)
+        assert (id_rsa instanceof String)
+
         echo("Подключаюсь к удалённому компьютеру по ssh...")
         sshActive = true
         sshHost = host

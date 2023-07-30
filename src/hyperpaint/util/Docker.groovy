@@ -48,6 +48,10 @@ final class Docker {
     /* Самописные функции */
 
     static void dockerConnect(String host, String user, String id_rsa, Runnable code) {
+        assert(host instanceof String)
+        assert(user instanceof String)
+        assert (id_rsa instanceof String)
+
         Shell.echo("Подключаюсь к удалённому компьютеру по ssh...")
         String pid = Shell.shWithOutput("ssh -i '${id_rsa}' -o 'StrictHostKeyChecking=no' -o 'StreamLocalBindUnlink=yes' -N -L '/var/run/docker.sock:/var/run/docker.sock' '${user}@${host}' & echo \$!")
         Thread.sleep(10000)
