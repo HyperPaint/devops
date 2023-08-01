@@ -17,10 +17,6 @@ if ($my_wp_home != '') {
     /** Fix to get the dashboard working with the reverse proxy. */
     $count = 1;
     $_SERVER['REQUEST_URI'] = str_replace('/wp-admin/', $my_wp_home . '/wp-admin/',  $_SERVER['REQUEST_URI'], $count);
-} else {
-     /** Wordpress home default */
-     define( 'WP_HOME', '/' );
-     define( 'WP_SITEURL', '/' );
 }
 
 /** Disable auto-update */
