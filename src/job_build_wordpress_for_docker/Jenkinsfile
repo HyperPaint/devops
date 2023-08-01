@@ -1,6 +1,6 @@
 package job_build_wordpress_for_docker
 
-@Library("devops@test")
+@Library("devops")
 import hyperpaint.util.Docker
 import hyperpaint.util.DockerCompose
 import hyperpaint.util.Regex
