@@ -13,6 +13,14 @@ final class Docker {
         }
     }
 
+    static String imagesLatest(String image, boolean q = false) {
+        if (q) {
+            return Shell.shWithOutput("docker image ls -q ${image}:latest")
+        } else {
+            return Shell.shWithOutput("docker image ls ${image}:latest")
+        }
+    }
+
     static String images(boolean q = false) {
         if (q) {
             return Shell.shWithOutput("docker image ls -q")

@@ -18,9 +18,9 @@ if ($my_wp_home != '') {
     $count = 1;
     $_SERVER['REQUEST_URI'] = str_replace('/wp-admin/', $my_wp_home . '/wp-admin/',  $_SERVER['REQUEST_URI'], $count);
 } else {
-    /** Wordpress home default */
-    define( 'WP_HOME', $_SERVER['HTTP_HOST'] );
-    define( 'WP_SITEURL', $_SERVER['HTTP_HOST'] );
+     /** Wordpress home default */
+     define( 'WP_HOME', '/' );
+     define( 'WP_SITEURL', '/' );
 }
 
 /** Disable auto-update */
