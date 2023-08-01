@@ -266,7 +266,7 @@ pipeline {
                         }
 
                         // Распаковать
-                        Util.unarchiveFile(chosenReleaseFileName, "${wordpressChosenReleaseName}/wordpress/wp-content/themes/")
+                        Util.unarchiveFile(chosenReleaseFileName, "${wordpressChosenReleaseName}/wordpress/wp-content/plugins/")
                     }
                 }
             }

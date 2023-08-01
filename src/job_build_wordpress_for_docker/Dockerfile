@@ -36,9 +36,9 @@ RUN httpd -S
 
 EXPOSE 80
 
-# Если эти параметры неверно указаны установка будет завершаться с ошибкой
-ENV MY_WP_PROTOCOL="https"
-ENV MY_WP_HOME="/"
+# Если эти параметры указаны иначе установка будет завершаться с ошибкой
+ENV MY_WP_PROTOCOL="http"
+ENV MY_WP_HOME=""
 
 ENV DB_NAME="database_name_here"
 ENV DB_USER="username_here"
