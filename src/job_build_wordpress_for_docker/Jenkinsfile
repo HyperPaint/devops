@@ -19,10 +19,10 @@ Boolean exportImage = params.export_image
 Boolean deleteImage = params.delete_image
 
 if (useCache == null) useCache = true
-if (deployImage == null) useCache = true
-if (testImage == null) useCache = true
-if (exportImage == null) useCache = false
-if (deleteImage == null) useCache = false
+if (deployImage == null) deployImage = true
+if (testImage == null) testImage = true
+if (exportImage == null) exportImage = false
+if (deleteImage == null) deleteImage = false
 
 /**
  * Получение переменных окружения, которые должны быть заданы
