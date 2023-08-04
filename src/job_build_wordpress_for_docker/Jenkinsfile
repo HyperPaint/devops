@@ -12,13 +12,15 @@ Shell.setJenkins(this)
 /**
  * Получение параметров, проверка и назначение значений по-умолчанию
  */
-Boolean useCache = params.use_cache
+Boolean useCacheFile = params.use_cache_file
+Boolean useCacheDocker = params.use_cache_docker
 Boolean deployImage = params.deploy_image
 Boolean testImage = params.test_image
 Boolean exportImage = params.export_image
 Boolean deleteImage = params.delete_image
 
-if (useCache == null) useCache = true
+if (useCacheFile == null) useCacheFile = true
+if (useCacheDocker == null) useCacheDocker = true
 if (deployImage == null) deployImage = true
 if (testImage == null) testImage = true
 if (exportImage == null) exportImage = false
@@ -31,41 +33,44 @@ String hostCredentials = env.host_credentials
 String sshCredentials = env.ssh_credentials
 String dockerComposeProjectDirectory = env.docker_compose_project_directory
 
-String wordpressReleaseUrlPattern = env.wordpress_url_pattern
-String wordpressReleaseNamePattern = env.wordpress_name_pattern
-String wordpressReleaseFileNamePattern = env.wordpress_file_name_pattern
+String wordpressReleasesUrl = env.wordpress
+String wordpressReleaseUrlRegex = env.wordpress_url_regex
+String wordpressReleaseNameRegex = env.wordpress_name_regex
+String wordpressReleaseFileNameRegex = env.wordpress_file_name_regex
 
-String themeReleaseUrlPattern = env.theme_url_pattern
-String themeReleaseNamePattern = env.theme_name_pattern
-String themeReleaseFileNamePattern = env.theme_file_name_pattern
+String themeReleaseUrlRegex = env.theme_url_regex
+String themeReleaseNameRegex = env.theme_name_regex
+String themeReleaseFileNameRegex = env.theme_file_name_regex
 
-String pluginReleaseUrlPattern = env.plugin_url_pattern
-String pluginReleaseNamePattern = env.plugin_name_pattern
-String pluginReleaseFileNamePattern = env.plugin_file_name_pattern
+String pluginReleaseUrlRegex = env.plugin_url_regex
+String pluginReleaseNameRegex = env.plugin_name_regex
+String pluginReleaseFileNameRegex = env.plugin_file_name_regex
 
 String noEnvString = "Переменная окружения '%s' не установлена"
 if (hostCredentials == null) throw new NullPointerException(String.format(noEnvString, "host_credentials"))
 if (sshCredentials == null) throw new NullPointerException(String.format(noEnvString, "ssh_credentials"))
 if (dockerComposeProjectDirectory == null) throw new NullPointerException(String.format(noEnvString, "docker_compose_project_directory"))
 
-if (wordpressReleaseUrlPattern == null) throw new NullPointerException(String.format(noEnvString, "wordpress_url_pattern"))
-if (wordpressReleaseNamePattern == null) throw new NullPointerException(String.format(noEnvString, "wordpress_name_pattern"))
-if (wordpressReleaseFileNamePattern == null) throw new NullPointerException(String.format(noEnvString, "wordpress_file_name_pattern"))
+if (wordpressReleasesUrl == null) throw new NullPointerException(String.format(noEnvString, "wordpress"))
+if (wordpressReleaseUrlRegex == null) throw new NullPointerException(String.format(noEnvString, "wordpress_url_regex"))
+if (wordpressReleaseNameRegex == null) throw new NullPointerException(String.format(noEnvString, "wordpress_name_regex"))
+if (wordpressReleaseFileNameRegex == null) throw new NullPointerException(String.format(noEnvString, "wordpress_file_name_regex"))
 
-if (themeReleaseUrlPattern == null) throw new NullPointerException(String.format(noEnvString, "theme_url_pattern"))
-if (themeReleaseNamePattern == null) throw new NullPointerException(String.format(noEnvString, "theme_name_pattern"))
-if (themeReleaseFileNamePattern == null) throw new NullPointerException(String.format(noEnvString, "theme_file_name_pattern"))
+if (themeReleaseUrlRegex == null) throw new NullPointerException(String.format(noEnvString, "theme_url_regex"))
+if (themeReleaseNameRegex == null) throw new NullPointerException(String.format(noEnvString, "theme_name_regex"))
+if (themeReleaseFileNameRegex == null) throw new NullPointerException(String.format(noEnvString, "theme_file_name_regex"))
 
-if (pluginReleaseUrlPattern == null) throw new NullPointerException(String.format(noEnvString, "plugin_url_pattern"))
-if (pluginReleaseNamePattern == null) throw new NullPointerException(String.format(noEnvString, "plugin_name_pattern"))
-if (pluginReleaseFileNamePattern == null) throw new NullPointerException(String.format(noEnvString, "plugin_file_name_pattern"))
+if (pluginReleaseUrlRegex == null) throw new NullPointerException(String.format(noEnvString, "plugin_url_regex"))
+if (pluginReleaseNameRegex == null) throw new NullPointerException(String.format(noEnvString, "plugin_name_regex"))
+if (pluginReleaseFileNameRegex == null) throw new NullPointerException(String.format(noEnvString, "plugin_file_name_regex"))
 
 /**
  * Переменные сценария
  */
-String imageName = "blog"
+String imageName = "hyperpaint/blog"
 String imageVersion = null
 String imageFullName = null
+// Используется для отката
 String imageLatest = null
 
 String releasesFile = "releases"
@@ -77,21 +82,21 @@ String pluginReleasesFileName = "${releasesFile}-plugin-%s.html"
 int cacheLifetime = 86400
 
 // Ссылка на дистрибутив
-String wordpressChosenReleaseUrl = null
+String wordpressReleaseUrl = null
 // Имя дистрибутива и директория дистрибутива
-String wordpressChosenReleaseName = null
+String wordpressReleaseName = null
 // Файл дистрибутива
-String wordpressChosenReleaseFileName = null
+String wordpressReleaseFileName = null
 
-//noinspection GroovyAssignabilityCheck
 pipeline {
     agent any
     parameters {
-        booleanParam(name: "use_cache", defaultValue: true, description: "Использовать кэш")
-        booleanParam(name: "deploy_image", defaultValue: true, description: "Развёртывать образ")
+        booleanParam(name: "use_cache_file", defaultValue: true, description: "Использовать ранее загруженные файлы")
+        booleanParam(name: "use_cache_docker", defaultValue: true, description: "Использовать прошлые сборки как кэш")
+        booleanParam(name: "deploy_image", defaultValue: true, description: "Развернуть образ")
         booleanParam(name: "test_image", defaultValue: true, description: "Тестировать образ")
         booleanParam(name: "export_image", defaultValue: false, description: "Экспортировать образ")
-        booleanParam(name: "delete_image", defaultValue: false, description: "Удалить образ после сборки")
+        booleanParam(name: "delete_image", defaultValue: false, description: "Не сохранять образ")
     }
     options {
         disableConcurrentBuilds()
@@ -102,19 +107,16 @@ pipeline {
             steps {
                 script {
                     echo("Проверяю доступные версии WordPress...")
-                    String wordpressReleasesUrl = env.wordpress
-                    assert(wordpressReleasesUrl instanceof String)
-
-                    // Ссылка на дистрибутив или список версий?
-                    if (Regex.find(wordpressReleasesUrl, wordpressReleaseUrlPattern)) {
+                    if (Regex.find(wordpressReleasesUrl, wordpressReleaseUrlRegex)) {
+                        // Указана ссылка на дистрибутив
                         echo("Найдено 1 версий WordPress")
-                        wordpressChosenReleaseUrl = wordpressReleasesUrl
-                        wordpressChosenReleaseName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
-                        wordpressChosenReleaseFileName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
+                        wordpressReleaseUrl = wordpressReleasesUrl
+                        wordpressReleaseName = Regex.group(wordpressReleaseUrl, wordpressReleaseNameRegex)
+                        wordpressReleaseFileName = Regex.group(wordpressReleaseUrl, wordpressReleaseFileNameRegex)
                     } else {
+                        // Указана ссылка на список версий
                         echo("Найден список версий WordPress")
-                        // Получить файл релизов
-                        if (useCache) {
+                        if (useCacheFile) {
                             Util.downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, cacheLifetime)
                         } else {
                             Util.downloadFile(wordpressReleasesUrl, wordpressReleasesFileName, -1)
@@ -122,13 +124,13 @@ pipeline {
 
                         // Поиск версий в файле
                         String buff = readFile(wordpressReleasesFileName)
-                        List<String> releaseUrls = Regex.groupAll(buff, wordpressReleaseUrlPattern)
+                        List<String> releaseUrls = Regex.groupAll(buff, wordpressReleaseUrlRegex)
                         if (releaseUrls.size()) {
                             echo("Найдено ${releaseUrls.size()} версий WordPress")
                             if (releaseUrls.size() == 1) {
-                                wordpressChosenReleaseUrl = releaseUrls.get(0)
+                                wordpressReleaseUrl = releaseUrls.get(0)
                             } else {
-                                wordpressChosenReleaseUrl = input(message: "Выбор версии WordPress", parameters: [choice(name: "Версия WordPress", choices: releaseUrls.join('\n'))]).toString()
+                                wordpressReleaseUrl = input(message: "Выбор версии WordPress", parameters: [choice(name: "Версия WordPress", choices: releaseUrls.join('\n'))]).toString()
                             }
                         } else {
                             error("Найдено ${releaseUrls.size()} версий WordPress")
@@ -136,16 +138,16 @@ pipeline {
                     }
 
                     // Скачать
-                    wordpressChosenReleaseName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseNamePattern)
-                    wordpressChosenReleaseFileName = Regex.group(wordpressChosenReleaseUrl, wordpressReleaseFileNamePattern)
-                    if (useCache) {
-                        Util.downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName)
+                    wordpressReleaseName = Regex.group(wordpressReleaseUrl, wordpressReleaseNameRegex)
+                    wordpressReleaseFileName = Regex.group(wordpressReleaseUrl, wordpressReleaseFileNameRegex)
+                    if (useCacheFile) {
+                        Util.downloadFile(wordpressReleaseUrl, wordpressReleaseFileName)
                     } else {
-                        Util.downloadFile(wordpressChosenReleaseUrl, wordpressChosenReleaseFileName, -1)
+                        Util.downloadFile(wordpressReleaseUrl, wordpressReleaseFileName, -1)
                     }
 
                     // Распаковать
-                    Util.unarchiveFile(wordpressChosenReleaseFileName, wordpressChosenReleaseName, true)
+                    Util.unarchiveFile(wordpressReleaseFileName, wordpressReleaseName, true)
                 }
             }
         }
@@ -153,7 +155,7 @@ pipeline {
             steps {
                 script {
                     echo("Удаляю предустановленные темы WordPress...")
-                    Shell.shOrFail("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
+                    Shell.shOrFail("cd \"${wordpressReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
 
                     echo("Проверяю доступные версии тем WordPress...")
                     String sizeString = env.themes
@@ -162,19 +164,19 @@ pipeline {
                     for (int i = 1; i <= size; i++) {
                         String currentReleasesUrl = env["theme" + i.toString()]
                         assert(currentReleasesUrl instanceof String)
-                        String currentName = Regex.group(currentReleasesUrl, themeReleaseNamePattern)
+                        String currentName = Regex.group(currentReleasesUrl, themeReleaseNameRegex)
 
-                        echo("Проверяю доступные версии ${currentName}")
-                        // Ссылка на дистрибутив или список версий?
-                        String chosenReleaseUrl = null
-                        if (Regex.find(currentReleasesUrl, themeReleaseUrlPattern.replace("%s", currentName))) {
+                        echo("Проверяю доступные версии темы ${currentName}")
+                        String currentReleaseUrl = null
+                        if (Regex.find(currentReleasesUrl, themeReleaseUrlRegex.replace("%s", currentName))) {
+                            // Указана ссылка на дистрибутив
                             echo("Найдено 1 версий ${currentName}")
-                            chosenReleaseUrl = currentReleasesUrl
+                            currentReleaseUrl = currentReleasesUrl
                         } else {
-                            // Получить файл релизов
+                            // Указана ссылка на список версий
                             echo("Найден список версий ${currentName}")
                             String currentReleasesFileName = String.format(themeReleasesFileName, currentName)
-                            if (useCache) {
+                            if (useCacheFile) {
                                 Util.downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
                             } else {
                                 Util.downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
@@ -182,14 +184,14 @@ pipeline {
 
                             // Поиск версий в файле
                             String buff = readFile(currentReleasesFileName)
-                            List<String> releaseUrls = Regex.groupAll(buff, themeReleaseUrlPattern.replace("%s", currentName))
+                            List<String> releaseUrls = Regex.groupAll(buff, themeReleaseUrlRegex.replace("%s", currentName))
                             if (releaseUrls.size()) {
                                 // Выбор версии
                                 echo("Найдено ${releaseUrls.size()} версий ${currentName}")
                                 if (releaseUrls.size() == 1) {
-                                    chosenReleaseUrl = releaseUrls.get(0)
+                                    currentReleaseUrl = releaseUrls.get(0)
                                 } else {
-                                    chosenReleaseUrl = input(message: "Выбор версии ${currentName}".toString(), parameters: [choice(name: "Версия ${currentName}", choices: releaseUrls.join('\n'))]).toString()
+                                    currentReleaseUrl = input(message: "Выбор версии ${currentName}".toString(), parameters: [choice(name: "Версия ${currentName}", choices: releaseUrls.join('\n'))]).toString()
                                 }
                             } else {
                                 echo("Найдено ${releaseUrls.size()} версий ${currentName}")
@@ -197,15 +199,15 @@ pipeline {
                         }
 
                         // Скачать
-                        String chosenReleaseFileName = Regex.group(chosenReleaseUrl, String.format(themeReleaseFileNamePattern, currentName))
-                        if (useCache) {
-                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                        String chosenReleaseFileName = Regex.group(currentReleaseUrl, String.format(themeReleaseFileNameRegex, currentName))
+                        if (useCacheFile) {
+                            Util.downloadFile(currentReleaseUrl, chosenReleaseFileName)
                         } else {
-                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
+                            Util.downloadFile(currentReleaseUrl, chosenReleaseFileName, -1)
                         }
 
                         // Распаковать
-                        Util.unarchiveFile(chosenReleaseFileName, "${wordpressChosenReleaseName}/wordpress/wp-content/themes/")
+                        Util.unarchiveFile(chosenReleaseFileName, "${wordpressReleaseName}/wordpress/wp-content/themes/")
                     }
                 }
             }
@@ -214,7 +216,7 @@ pipeline {
             steps {
                 script {
                     echo("Удаляю предустановленные плагины WordPress...")
-                    Shell.shOrFail("cd \"${wordpressChosenReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
+                    Shell.shOrFail("cd \"${wordpressReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
 
                     echo("Проверяю доступные версии плагинов WordPress...")
                     String sizeString = env.plugins
@@ -223,19 +225,19 @@ pipeline {
                     for (int i = 1; i <= size; i++) {
                         String currentReleasesUrl = env["plugin" + i.toString()]
                         assert(currentReleasesUrl instanceof String)
-                        String currentName = Regex.group(currentReleasesUrl, pluginReleaseNamePattern)
+                        String currentName = Regex.group(currentReleasesUrl, pluginReleaseNameRegex)
 
-                        echo("Проверяю доступные версии ${currentName}")
-                        // Ссылка на дистрибутив или список версий?
-                        String chosenReleaseUrl = null
-                        if (Regex.find(currentReleasesUrl, pluginReleaseUrlPattern.replace("%s", currentName))) {
+                        echo("Проверяю доступные версии плагина ${currentName}")
+                        String currentReleaseUrl = null
+                        // Указана ссылка на дистрибутив
+                        if (Regex.find(currentReleasesUrl, pluginReleaseUrlRegex.replace("%s", currentName))) {
                             echo("Найдено 1 версий ${currentName}")
-                            chosenReleaseUrl = currentReleasesUrl
+                            currentReleaseUrl = currentReleasesUrl
                         } else {
-                            // Получить файл релизов
+                            // Указана ссылка на список версий
                             echo("Найден список версий ${currentName}")
                             String currentReleasesFileName = String.format(pluginReleasesFileName, currentName)
-                            if (useCache) {
+                            if (useCacheFile) {
                                 Util.downloadFile(currentReleasesUrl, currentReleasesFileName, cacheLifetime)
                             } else {
                                 Util.downloadFile(currentReleasesUrl, currentReleasesFileName, -1)
@@ -243,14 +245,14 @@ pipeline {
 
                             // Поиск версий в файле
                             String buff = readFile(currentReleasesFileName)
-                            List<String> releaseUrls = Regex.groupAll(buff, pluginReleaseUrlPattern.replace("%s", currentName))
+                            List<String> releaseUrls = Regex.groupAll(buff, pluginReleaseUrlRegex.replace("%s", currentName))
                             if (releaseUrls.size()) {
                                 // Выбор версии
                                 echo("Найдено ${releaseUrls.size()} версий ${currentName}")
                                 if (releaseUrls.size() == 1) {
-                                    chosenReleaseUrl = releaseUrls.get(0)
+                                    currentReleaseUrl = releaseUrls.get(0)
                                 } else {
-                                    chosenReleaseUrl = input(message: "Выбор версии ${currentName}".toString(), parameters: [choice(name: "Версия ${currentName}", choices: releaseUrls.join('\n'))]).toString()
+                                    currentReleaseUrl = input(message: "Выбор версии ${currentName}".toString(), parameters: [choice(name: "Версия ${currentName}", choices: releaseUrls.join('\n'))]).toString()
                                 }
                             } else {
                                 echo("Найдено ${releaseUrls.size()} версий ${currentName}")
@@ -258,15 +260,15 @@ pipeline {
                         }
 
                         // Скачать
-                        String chosenReleaseFileName = Regex.group(chosenReleaseUrl, String.format(pluginReleaseFileNamePattern, currentName))
-                        if (useCache) {
-                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName)
+                        String chosenReleaseFileName = Regex.group(currentReleaseUrl, String.format(pluginReleaseFileNameRegex, currentName))
+                        if (useCacheFile) {
+                            Util.downloadFile(currentReleaseUrl, chosenReleaseFileName)
                         } else {
-                            Util.downloadFile(chosenReleaseUrl, chosenReleaseFileName, -1)
+                            Util.downloadFile(currentReleaseUrl, chosenReleaseFileName, -1)
                         }
 
                         // Распаковать
-                        Util.unarchiveFile(chosenReleaseFileName, "${wordpressChosenReleaseName}/wordpress/wp-content/plugins/")
+                        Util.unarchiveFile(chosenReleaseFileName, "${wordpressReleaseName}/wordpress/wp-content/plugins/")
                     }
                 }
             }
@@ -275,7 +277,7 @@ pipeline {
             steps {
                 script {
                     echo("Настраиваю WordPress...")
-                    String file = "${wordpressChosenReleaseName}/wordpress/wp-config-sample.php"
+                    String file = "${wordpressReleaseName}/wordpress/wp-config-sample.php"
                     // Добавить дополнительную конфигурацию в начало файла с заменой <?php
                     Shell.shOrFail("sed -i 's/<?php//g' '${file}'")
                     Shell.shOrFail("mv '${file}' '${file}.buff'")
@@ -306,24 +308,24 @@ pipeline {
             steps {
                 script {
                     echo("Копирую зависимые файлы контейнера...")
-                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressChosenReleaseName}/'")
-                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressChosenReleaseName}/'")
-                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressChosenReleaseName}/'")
+                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressReleaseName}/'")
+                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressReleaseName}/'")
+                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressReleaseName}/'")
 
                     echo("Собираю контейнер...")
                     String BuildNumber = env.BUILD_NUMBER
                     assert(BuildNumber instanceof String)
-                    imageVersion = Regex.group(wordpressChosenReleaseName, "([0-9\\.]+)") + "-" + BuildNumber
+                    imageVersion = Regex.group(wordpressReleaseName, "([0-9\\.]+)") + "-" + BuildNumber
                     imageFullName = imageName + ":" + imageVersion
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
-                            // latest
+                            // Сохранить последнюю версию
                             imageLatest = Docker.imagesLatest(imageName, true).trim()
 
-                            if (useCache) {
-                                Docker.build(imageFullName, wordpressChosenReleaseName, true)
+                            if (useCacheDocker) {
+                                Docker.build(imageFullName, wordpressReleaseName, true)
                             } else {
-                                Docker.build(imageFullName, wordpressChosenReleaseName, false)
+                                Docker.build(imageFullName, wordpressReleaseName, false)
                             }
 
                             // latest
@@ -332,7 +334,7 @@ pipeline {
                     }
 
                     // Директория больше не нужна
-                    Shell.shOrFail("rm -rf '${wordpressChosenReleaseName}/'")
+                    Shell.shOrFail("rm -rf '${wordpressReleaseName}/'")
                 }
             }
         }
@@ -377,11 +379,8 @@ pipeline {
                                     echo("Тест: Перезагрузка")
                                     DockerCompose.restart(dockerComposeProjectDirectory)
                                     Thread.sleep(10000)
-                                    String result = DockerCompose.ps(dockerComposeProjectDirectory, true)
-                                    List<String> containerIds = new ArrayList<>()
-                                    containerIds.addAll(result.split("\n"))
-                                    containerIds.remove("")
-                                    echo("Развёрнуто ${containerIds.size()} контейнеров")
+                                    String restartResult = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                    // curl с проверкой на код 200
                                 })
                             }
                         } else {
@@ -423,7 +422,7 @@ pipeline {
                         echo("Удаляю образ...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Docker.dockerConnect(env.host, env.user, env.id_rsa, {
-                                // latest
+                                // Установить последнюю версию
                                 assert(imageLatest instanceof String)
                                 Docker.tag(imageLatest, "${imageName}:latest")
 
