@@ -33,7 +33,7 @@ pipeline {
                     for (int i = 0; i < size; i++) {
                         host = allHosts.get(i)
                         Shell.echo("Проверка ${host}")
-                        Shell.echo(Shell.shWithOutput("nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+'"))
+                        Shell.echo(Shell.shGetOutput("nmap -Pn -n --reason ${host} -p ${ports} | grep -iE 'port|^[0-9]+/[a-z]+'"))
                     }
                 }
             }

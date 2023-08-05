@@ -155,7 +155,7 @@ pipeline {
             steps {
                 script {
                     echo("Удаляю предустановленные темы WordPress...")
-                    Shell.shOrFail("cd \"${wordpressReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
+                    Shell.sh("cd \"${wordpressReleaseName}/wordpress/wp-content/themes/\" && rm -rf \$(ls | grep -v \"index.php\")")
 
                     echo("Проверяю доступные версии тем WordPress...")
                     String sizeString = env.themes
@@ -216,7 +216,7 @@ pipeline {
             steps {
                 script {
                     echo("Удаляю предустановленные плагины WordPress...")
-                    Shell.shOrFail("cd \"${wordpressReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
+                    Shell.sh("cd \"${wordpressReleaseName}/wordpress/wp-content/plugins/\" && rm -rf \$(ls | grep -v \"index.php\")")
 
                     echo("Проверяю доступные версии плагинов WordPress...")
                     String sizeString = env.plugins
@@ -279,26 +279,26 @@ pipeline {
                     echo("Настраиваю WordPress...")
                     String file = "${wordpressReleaseName}/wordpress/wp-config-sample.php"
                     // Добавить дополнительную конфигурацию в начало файла с заменой <?php
-                    Shell.shOrFail("sed -i 's/<?php//g' '${file}'")
-                    Shell.shOrFail("mv '${file}' '${file}.buff'")
-                    Shell.shOrFail("cat 'src/job_build_wordpress_for_docker/wordpress/wp-config.php' '${file}.buff' | tee '${file}' 1>/dev/null")
-                    Shell.shOrFail("rm -f '${file}.buff'")
+                    Shell.sh("sed -i 's/<?php//g' '${file}'")
+                    Shell.sh("mv '${file}' '${file}.buff'")
+                    Shell.sh("cat 'src/job_build_wordpress_for_docker/wordpress/wp-config.php' '${file}.buff' | tee '${file}' 1>/dev/null")
+                    Shell.sh("rm -f '${file}.buff'")
                     // Параметризовать файл - параметры базы данных
-                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_NAME',\\s*'.*'\\s*);/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_USER',\\s*'.*'\\s*);/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_PASSWORD',\\s*'.*'\\s*);/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_HOST',\\s*'.*'\\s*);/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_CHARSET',\\s*'.*'\\s*);/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_COLLATE',\\s*'.*'\\s*);/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'DB_NAME',\\s*'.*'\\s*);/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'DB_USER',\\s*'.*'\\s*);/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'DB_PASSWORD',\\s*'.*'\\s*);/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'DB_HOST',\\s*'.*'\\s*);/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'DB_CHARSET',\\s*'.*'\\s*);/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'DB_COLLATE',\\s*'.*'\\s*);/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${file}\"")
                     // Параметризовать файл - уникальные ключи и соли для аутентификации
-                    Shell.shOrFail("sed -i \"s/define(\\s*'AUTH_KEY',\\s*'.*'\\s*);/define( 'AUTH_KEY', '\\\$AUTH_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'SECURE_AUTH_KEY',\\s*'.*'\\s*);/define( 'SECURE_AUTH_KEY', '\\\$SECURE_AUTH_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'LOGGED_IN_KEY',\\s*'.*'\\s*);/define( 'LOGGED_IN_KEY', '\\\$LOGGED_IN_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'NONCE_KEY',\\s*'.*'\\s*);/define( 'NONCE_KEY', '\\\$NONCE_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'AUTH_SALT',\\s*'.*'\\s*);/define( 'AUTH_SALT', '\\\$AUTH_SALT' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'SECURE_AUTH_SALT',\\s*'.*'\\s*);/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'LOGGED_IN_SALT',\\s*'.*'\\s*);/define( 'LOGGED_IN_SALT', '\\\$LOGGED_IN_SALT' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define(\\s*'NONCE_SALT',\\s*'.*'\\s*);/define( 'NONCE_SALT', '\\\$NONCE_SALT' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'AUTH_KEY',\\s*'.*'\\s*);/define( 'AUTH_KEY', '\\\$AUTH_KEY' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'SECURE_AUTH_KEY',\\s*'.*'\\s*);/define( 'SECURE_AUTH_KEY', '\\\$SECURE_AUTH_KEY' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'LOGGED_IN_KEY',\\s*'.*'\\s*);/define( 'LOGGED_IN_KEY', '\\\$LOGGED_IN_KEY' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'NONCE_KEY',\\s*'.*'\\s*);/define( 'NONCE_KEY', '\\\$NONCE_KEY' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'AUTH_SALT',\\s*'.*'\\s*);/define( 'AUTH_SALT', '\\\$AUTH_SALT' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'SECURE_AUTH_SALT',\\s*'.*'\\s*);/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'LOGGED_IN_SALT',\\s*'.*'\\s*);/define( 'LOGGED_IN_SALT', '\\\$LOGGED_IN_SALT' );/g\" \"${file}\"")
+                    Shell.sh("sed -i \"s/define(\\s*'NONCE_SALT',\\s*'.*'\\s*);/define( 'NONCE_SALT', '\\\$NONCE_SALT' );/g\" \"${file}\"")
                     // Показать конфиг
                     echo(readFile(file))
                 }
@@ -308,9 +308,9 @@ pipeline {
             steps {
                 script {
                     echo("Копирую зависимые файлы контейнера...")
-                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressReleaseName}/'")
-                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressReleaseName}/'")
-                    Shell.shOrFail("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressReleaseName}/'")
+                    Shell.sh("cp -r 'src/job_build_wordpress_for_docker/Dockerfile' '${wordpressReleaseName}/'")
+                    Shell.sh("cp -r 'src/job_build_wordpress_for_docker/httpd' '${wordpressReleaseName}/'")
+                    Shell.sh("cp -r 'src/job_build_wordpress_for_docker/scripts' '${wordpressReleaseName}/'")
 
                     echo("Собираю контейнер...")
                     String BuildNumber = env.BUILD_NUMBER
@@ -320,12 +320,12 @@ pipeline {
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             // Сохранить последнюю версию
-                            imageLatest = Docker.imagesLatest(imageName, true).trim()
+                            imageLatest = Docker.images("${imageName}:latest", true).trim()
 
                             if (useCacheDocker) {
-                                Docker.build(imageFullName, wordpressReleaseName, true)
+                                Docker.build(wordpressReleaseName, imageFullName, true)
                             } else {
-                                Docker.build(imageFullName, wordpressReleaseName, false)
+                                Docker.build(wordpressReleaseName, imageFullName, false)
                             }
 
                             // latest
@@ -334,7 +334,7 @@ pipeline {
                     }
 
                     // Директория больше не нужна
-                    Shell.shOrFail("rm -rf '${wordpressReleaseName}/'")
+                    Shell.sh("rm -rf '${wordpressReleaseName}/'")
                 }
             }
         }
@@ -355,7 +355,7 @@ pipeline {
                                 Thread.sleep(10000)
                                 Shell.echo(DockerCompose.logs(dockerComposeProjectDirectory))
 
-                                String result = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                String result = DockerCompose.listContainers(dockerComposeProjectDirectory, true)
                                 List<String> containerIds = new ArrayList<>()
                                 containerIds.addAll(result.split("\n"))
                                 containerIds.remove("")
@@ -379,7 +379,7 @@ pipeline {
                                     echo("Тест: Перезагрузка")
                                     DockerCompose.restart(dockerComposeProjectDirectory)
                                     Thread.sleep(10000)
-                                    String restartResult = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                    String restartResult = DockerCompose.listContainers(dockerComposeProjectDirectory, true)
                                     // curl с проверкой на код 200
                                 })
                             }
@@ -409,8 +409,8 @@ pipeline {
                         String imageExportedName = imageName.replace("/", "-").replace(":", "-")
                         String imageExportedFullName = imageFullName.replace("/", "-").replace(":", "-")
                         // Удаление прошлой сборки. Расширяется только без кавычек
-                        if (Shell.shWithStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
-                            Shell.shOrFail("rm -f ${imageExportedName}:*.tar")
+                        if (Shell.shGetStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
+                            Shell.sh("rm -f ${imageExportedName}:*.tar")
                         }
                         // Экспорт
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
@@ -428,7 +428,7 @@ pipeline {
                                 assert(imageLatest instanceof String)
                                 if (imageLatest == "") {
                                     // Это первая сборка
-                                    Docker.rmi("${imageName}:latest")
+                                    Docker.removeImage("${imageName}:latest")
                                 } else {
                                     // Есть предпоследняя сборка
                                     Docker.tag(imageLatest, "${imageName}:latest")
@@ -436,7 +436,7 @@ pipeline {
 
                                 // rmi
                                 assert(imageFullName instanceof String)
-                                Docker.rmi(imageFullName)
+                                Docker.removeImage(imageFullName)
                             })
                         }
                     }

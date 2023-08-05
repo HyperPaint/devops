@@ -2,34 +2,35 @@ package hyperpaint.util
 
 final class Shell {
     private static final class OutputInterceptor implements Appendable {
-        protected int processExitValue = 0
-        private StringBuilder processOutput = new StringBuilder()
-        private InputStream input = null
+        /** Выходной поток данных */
         private Appendable output = null
+        /** Результат выполнения процесса */
+        protected int processExitValue = 0
+        /** Текстовый результат выполнения процесса */
+        private StringBuilder processOutput = new StringBuilder()
 
-        OutputInterceptor(InputStream input, Appendable output) {
-            this.input = input
+        OutputInterceptor(Appendable output) {
             this.output = output
         }
 
         @Override
         Appendable append(CharSequence csq) throws IOException {
-            processOutput.append(csq)
             output.append(csq)
+            processOutput.append(csq)
             return this
         }
 
         @Override
         Appendable append(CharSequence csq, int start, int end) throws IOException {
-            processOutput.append(csq, start, end)
             output.append(csq, start, end)
+            processOutput.append(csq, start, end)
             return this
         }
 
         @Override
         Appendable append(char c) throws IOException {
-            processOutput.append(c)
             output.append(c)
+            processOutput.append(c)
             return this
         }
 
@@ -63,52 +64,76 @@ final class Shell {
         this.jenkins = jenkins
     }
 
-    static void shOrFail(String command) {
+    static void sh(String command) {
         command = getSshConnectString() + command
 
         if (jenkins != null) {
             if (jenkins.sh(script: command, returnStatus: true) != 0) {
-                throw new RuntimeException("sh '" + command + "' is failed")
+                throw new RuntimeException("sh '${command}' is failed")
             }
         } else {
-            System.out.print(command)
-            ProcessBuilder processBuilder = new ProcessBuilder(command)
-            Process process = processBuilder.start()
-            OutputInterceptor outputInterceptor = new OutputInterceptor(process.getInputStream(), System.out)
-            outputInterceptor.setExitValue(process.exitValue())
-            if (outputInterceptor.isFailed()) {
-                throw new RuntimeException("sh '" + command + "' is failed")
+            System.out.println("\$ ${command}")
+            OutputInterceptor outputInterceptor = new OutputInterceptor(System.out)
+            ProcessBuilder processBuilder = new ProcessBuilder(command.split("\\s"))
+            try {
+                Process process = processBuilder.start()
+                process.consumeProcessOutputStream(outputInterceptor)
+                process.consumeProcessErrorStream(outputInterceptor)
+                outputInterceptor.setExitValue(process.waitFor())
+                if (outputInterceptor.isFailed()) {
+                    throw new RuntimeException("sh '${command}' is failed")
+                }
+            } catch (IOException ignored) {
+                throw new RuntimeException("sh '${command}' is failed")
             }
+
         }
     }
 
-    static String shWithOutput(String command) {
-        command = getSshConnectString() + command
-
-        if (jenkins != null) {
-            return jenkins.sh(script: command, returnStdout: true)
-        } else {
-            System.out.print(command)
-            ProcessBuilder processBuilder = new ProcessBuilder(command)
-            Process process = processBuilder.start()
-            OutputInterceptor outputInterceptor = new OutputInterceptor(process.getInputStream(), System.out)
-            outputInterceptor.setExitValue(process.exitValue())
-            return outputInterceptor.getOutput()
-        }
-    }
-
-    static boolean shWithStatus(String command) {
+    static boolean shGetStatus(String command) {
         command = getSshConnectString() + command
 
         if (jenkins != null) {
             return jenkins.sh(script: command, returnStatus: true) == 0
         } else {
-            System.out.print(command)
-            ProcessBuilder processBuilder = new ProcessBuilder(command)
-            Process process = processBuilder.start()
-            OutputInterceptor outputInterceptor = new OutputInterceptor(process.getInputStream(), System.out)
-            outputInterceptor.setExitValue(process.exitValue())
-            return outputInterceptor.isSuccess()
+            System.out.println("\$ ${command}")
+            OutputInterceptor outputInterceptor = new OutputInterceptor(System.out)
+            ProcessBuilder processBuilder = new ProcessBuilder(command.split("\\s"))
+            try {
+                Process process = processBuilder.start()
+                process.consumeProcessOutputStream(outputInterceptor)
+                process.consumeProcessErrorStream(outputInterceptor)
+                outputInterceptor.setExitValue(process.waitFor())
+                return outputInterceptor.isSuccess()
+            } catch (IOException ignored) {
+                System.err.println("sh '${command}' is failed")
+                return false
+            }
+        }
+    }
+
+    static String shGetOutput(String command) {
+        command = getSshConnectString() + command
+
+        if (jenkins != null) {
+            String buff = jenkins.sh(script: command, returnStdout: true)
+            jenkins.echo(buff)
+            return buff
+        } else {
+            System.out.println("\$ ${command}")
+            OutputInterceptor outputInterceptor = new OutputInterceptor(System.out)
+            ProcessBuilder processBuilder = new ProcessBuilder(command.split("\\s"))
+            try {
+                Process process = processBuilder.start()
+                process.consumeProcessOutputStream(outputInterceptor)
+                process.consumeProcessErrorStream(outputInterceptor)
+                outputInterceptor.setExitValue(process.waitFor())
+                return outputInterceptor.getOutput()
+            } catch (IOException ignored) {
+                System.err.println("sh '${command}' is failed")
+                return "sh '${command}' is failed"
+            }
+
         }
     }
 
@@ -132,8 +157,9 @@ final class Shell {
         assert(host instanceof String)
         assert(user instanceof String)
         assert (id_rsa instanceof String)
+        assert (code instanceof Runnable)
 
-        echo("Подключаюсь к удалённому компьютеру по ssh...")
+        echo("Подключаюсь к удалённому компьютеру по ssh")
         sshActive = true
         sshHost = host
         sshUser = user
@@ -144,7 +170,7 @@ final class Shell {
         } catch (Exception e) {
             e.printStackTrace()
         } finally {
-            echo("Отключаю ssh от удалённого компьютера...")
+            echo("Отключаю ssh от удалённого компьютера")
             sshActive = false
             sshHost = null
             sshUser = null

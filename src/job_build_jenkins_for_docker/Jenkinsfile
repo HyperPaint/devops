@@ -80,7 +80,7 @@ pipeline {
                     echo("Проверяю последнюю версию Jenkins...")
                     if (useCacheFile) {
                         String hash1 = "", hash2
-                        if (Shell.shWithStatus("[[ -f ${jenkinsHash} ]]")) {
+                        if (Shell.shGetStatus("[[ -f ${jenkinsHash} ]]")) {
                             hash1 = readFile(jenkinsHash)
                         }
                         Util.downloadFile(jenkinsReleaseHashUrl, jenkinsHash, cacheLifetime)
@@ -100,29 +100,29 @@ pipeline {
             steps {
                 script {
                     echo("Копирую зависимые файлы контейнера...")
-                    if (Shell.shWithStatus("[[ -d '${jenkinsDirectory}' ]]")) {
-                        Shell.shOrFail("rm -rf '${jenkinsDirectory}'")
+                    if (Shell.shGetStatus("[[ -d '${jenkinsDirectory}' ]]")) {
+                        Shell.sh("rm -rf '${jenkinsDirectory}'")
                     }
-                    Shell.shOrFail("mkdir '${jenkinsDirectory}'")
-                    Shell.shOrFail("cp -r '${jenkinsWar}' '${jenkinsDirectory}'")
-                    Shell.shOrFail("cp -r '${jenkinsHash}' '${jenkinsDirectory}'")
-                    Shell.shOrFail("cp -r 'src/job_build_jenkins_for_docker/Dockerfile' '${jenkinsDirectory}/'")
-                    Shell.shOrFail("cp -r 'src/job_build_jenkins_for_docker/scripts' '${jenkinsDirectory}/'")
+                    Shell.sh("mkdir '${jenkinsDirectory}'")
+                    Shell.sh("cp -r '${jenkinsWar}' '${jenkinsDirectory}'")
+                    Shell.sh("cp -r '${jenkinsHash}' '${jenkinsDirectory}'")
+                    Shell.sh("cp -r 'src/job_build_jenkins_for_docker/Dockerfile' '${jenkinsDirectory}/'")
+                    Shell.sh("cp -r 'src/job_build_jenkins_for_docker/scripts' '${jenkinsDirectory}/'")
 
                     echo("Собираю контейнер...")
                     String BuildNumber = env.BUILD_NUMBER
                     assert(BuildNumber instanceof String)
-                    imageVersion = Shell.shWithOutput("java -jar ${jenkinsWar} --version").trim() + "-" + BuildNumber
+                    imageVersion = Shell.shGetOutput("java -jar ${jenkinsWar} --version").trim() + "-" + BuildNumber
                     imageFullName = imageName + ":" + imageVersion
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             // Сохранить последнюю версию
-                            imageLatest = Docker.imagesLatest(imageName, true).trim()
+                            imageLatest = Docker.images("${imageName}:latest", true).trim()
 
                             if (useCacheDocker) {
-                                Docker.build(imageFullName, jenkinsDirectory, true)
+                                Docker.build(jenkinsDirectory, imageFullName, true)
                             } else {
-                                Docker.build(imageFullName, jenkinsDirectory, false)
+                                Docker.build(jenkinsDirectory, imageFullName, false)
                             }
 
                             // latest
@@ -131,7 +131,7 @@ pipeline {
                     }
 
                     // Директория больше не нужна
-                    Shell.shOrFail("rm -rf '${jenkinsDirectory}/'")
+                    Shell.sh("rm -rf '${jenkinsDirectory}/'")
                 }
             }
         }
@@ -152,7 +152,7 @@ pipeline {
                                 Thread.sleep(10000)
                                 Shell.echo(DockerCompose.logs(dockerComposeProjectDirectory))
 
-                                String result = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                String result = DockerCompose.listContainers(dockerComposeProjectDirectory, true)
                                 List<String> containerIds = new ArrayList<>()
                                 containerIds.addAll(result.split("\n"))
                                 containerIds.remove("")
@@ -176,7 +176,7 @@ pipeline {
                                     echo("Тест: Перезагрузка")
                                     DockerCompose.restart(dockerComposeProjectDirectory)
                                     Thread.sleep(10000)
-                                    String restartResult = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                    String restartResult = DockerCompose.listContainers(dockerComposeProjectDirectory, true)
                                     // curl с проверкой на код 200
                                 })
                             }
@@ -206,8 +206,8 @@ pipeline {
                         String imageExportedName = imageName.replace("/", "-").replace(":", "-")
                         String imageExportedFullName = imageFullName.replace("/", "-").replace(":", "-")
                         // Удаление прошлой сборки. Расширяется только без кавычек
-                        if (Shell.shWithStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
-                            Shell.shOrFail("rm -f ${imageExportedName}:*.tar")
+                        if (Shell.shGetStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
+                            Shell.sh("rm -f ${imageExportedName}:*.tar")
                         }
                         // Экспорт
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
@@ -225,7 +225,7 @@ pipeline {
                                 assert(imageLatest instanceof String)
                                 if (imageLatest == "") {
                                     // Это первая сборка
-                                    Docker.rmi("${imageName}:latest")
+                                    Docker.removeImage("${imageName}:latest")
                                 } else {
                                     // Есть предпоследняя сборка
                                     Docker.tag(imageLatest, "${imageName}:latest")
@@ -233,7 +233,7 @@ pipeline {
 
                                 // rmi
                                 assert(imageFullName instanceof String)
-                                Docker.rmi(imageFullName)
+                                Docker.removeImage(imageFullName)
                             })
                         }
                     }
