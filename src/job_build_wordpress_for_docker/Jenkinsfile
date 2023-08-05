@@ -284,21 +284,21 @@ pipeline {
                     Shell.shOrFail("cat 'src/job_build_wordpress_for_docker/wordpress/wp-config.php' '${file}.buff' | tee '${file}' 1>/dev/null")
                     Shell.shOrFail("rm -f '${file}.buff'")
                     // Параметризовать файл - параметры базы данных
-                    Shell.shOrFail("sed -i \"s/define( 'DB_NAME', 'database_name_here' );/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'DB_USER', 'username_here' );/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'DB_PASSWORD', 'password_here' );/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'DB_HOST', 'localhost' );/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'DB_CHARSET', 'utf8' );/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'DB_COLLATE', '' );/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_NAME',\\s*'.*'\\s*);/define( 'DB_NAME', '\\\$DB_NAME' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_USER',\\s*'.*'\\s*);/define( 'DB_USER', '\\\$DB_USER' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_PASSWORD',\\s*'.*'\\s*);/define( 'DB_PASSWORD', '\\\$DB_PASSWORD' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_HOST',\\s*'.*'\\s*);/define( 'DB_HOST', '\\\$DB_HOST' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_CHARSET',\\s*'.*'\\s*);/define( 'DB_CHARSET', '\\\$DB_CHARSET' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'DB_COLLATE',\\s*'.*'\\s*);/define( 'DB_COLLATE', '\\\$DB_COLLATE' );/g\" \"${file}\"")
                     // Параметризовать файл - уникальные ключи и соли для аутентификации
-                    Shell.shOrFail("sed -i \"s/define( 'AUTH_KEY',\\s*'put your unique phrase here' );/define( 'AUTH_KEY', '\\\$AUTH_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'SECURE_AUTH_KEY',\\s*'put your unique phrase here' );/define( 'SECURE_AUTH_KEY', '\\\$SECURE_AUTH_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'LOGGED_IN_KEY',\\s*'put your unique phrase here' );/define( 'LOGGED_IN_KEY', '\\\$LOGGED_IN_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'NONCE_KEY',\\s*'put your unique phrase here' );/define( 'NONCE_KEY', '\\\$NONCE_KEY' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'AUTH_SALT',\\s*'put your unique phrase here' );/define( 'AUTH_SALT', '\\\$AUTH_SALT' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'SECURE_AUTH_SALT',\\s*'put your unique phrase here' );/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'LOGGED_IN_SALT',\\s*'put your unique phrase here' );/define( 'LOGGED_IN_SALT', '\\\$LOGGED_IN_SALT' );/g\" \"${file}\"")
-                    Shell.shOrFail("sed -i \"s/define( 'NONCE_SALT',\\s*'put your unique phrase here' );/define( 'NONCE_SALT', '\\\$NONCE_SALT' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'AUTH_KEY',\\s*'.*'\\s*);/define( 'AUTH_KEY', '\\\$AUTH_KEY' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'SECURE_AUTH_KEY',\\s*'.*'\\s*);/define( 'SECURE_AUTH_KEY', '\\\$SECURE_AUTH_KEY' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'LOGGED_IN_KEY',\\s*'.*'\\s*);/define( 'LOGGED_IN_KEY', '\\\$LOGGED_IN_KEY' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'NONCE_KEY',\\s*'.*'\\s*);/define( 'NONCE_KEY', '\\\$NONCE_KEY' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'AUTH_SALT',\\s*'.*'\\s*);/define( 'AUTH_SALT', '\\\$AUTH_SALT' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'SECURE_AUTH_SALT',\\s*'.*'\\s*);/define( 'SECURE_AUTH_SALT', '\\\$SECURE_AUTH_SALT' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'LOGGED_IN_SALT',\\s*'.*'\\s*);/define( 'LOGGED_IN_SALT', '\\\$LOGGED_IN_SALT' );/g\" \"${file}\"")
+                    Shell.shOrFail("sed -i \"s/define(\\s*'NONCE_SALT',\\s*'.*'\\s*);/define( 'NONCE_SALT', '\\\$NONCE_SALT' );/g\" \"${file}\"")
                     // Показать конфиг
                     echo(readFile(file))
                 }
@@ -404,16 +404,18 @@ pipeline {
                 script {
                     if (exportImage) {
                         echo("Экспортирую образ...")
-                        // Удаление прошлой сборки. Расширяется только без кавычек
                         assert(imageName instanceof String)
-                        if (Shell.shWithStatus("[[ -f ${imageName}:*.tar ]]")) {
-                            Shell.shOrFail("rm -f ${imageName}:*.tar")
+                        assert(imageFullName instanceof String)
+                        String imageExportedName = imageName.replace("/", "-").replace(":", "-")
+                        String imageExportedFullName = imageFullName.replace("/", "-").replace(":", "-")
+                        // Удаление прошлой сборки. Расширяется только без кавычек
+                        if (Shell.shWithStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
+                            Shell.shOrFail("rm -f ${imageExportedName}:*.tar")
                         }
                         // Экспорт
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Docker.dockerConnect(env.host, env.user, env.id_rsa, {
-                                assert(imageFullName instanceof String)
-                                Docker.save(imageFullName, "${imageFullName}.tar")
+                                Docker.save(imageFullName, "${imageExportedFullName}.tar")
                             })
                         }
                     }
@@ -424,7 +426,13 @@ pipeline {
                             Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                                 // Установить последнюю версию
                                 assert(imageLatest instanceof String)
-                                Docker.tag(imageLatest, "${imageName}:latest")
+                                if (imageLatest == "") {
+                                    // Это первая сборка
+                                    Docker.rmi("${imageName}:latest")
+                                } else {
+                                    // Есть предпоследняя сборка
+                                    Docker.tag(imageLatest, "${imageName}:latest")
+                                }
 
                                 // rmi
                                 assert(imageFullName instanceof String)

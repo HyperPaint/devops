@@ -56,5 +56,8 @@ ENV SECURE_AUTH_SALT="put your unique phrase here"
 ENV LOGGED_IN_SALT="put your unique phrase here"
 ENV NONCE_SALT="put your unique phrase here"
 
-# запуск
+# Запуск
 ENTRYPOINT ["/root/scripts/start.sh"]
+
+# Готовность
+HEALTHCHECK CMD /root/scripts/healthcheck.sh

@@ -5,13 +5,13 @@ pid=$$
 trap "stop_app" 2 15
 
 log() {
-    # ISO-8601
-    echo "[$(date '+%FT%TZ')] [$0] $1"
+  # ISO-8601
+  echo "[$(date '+%FT%TZ')] [$0] $1"
 }
 
 error() {
-    # ISO-8601
-    echo "[$(date '+%FT%TZ')] [$0] $1" 1>&2
+  # ISO-8601
+  echo "[$(date '+%FT%TZ')] [$0] $1" 1>&2
 }
 
 prepare_app() {
@@ -98,7 +98,7 @@ sleep_app() {
   error "Something went wrong"
   error "Sleeping 10 minutes..."
   sleep "10m"
-  return 1
+  exit 1
 }
 
 if prepare_app; then
