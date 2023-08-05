@@ -48,7 +48,7 @@ if (jenkinsReleaseHashUrl == null) throw new NullPointerException(String.format(
  */
 String imageName = "hyperpaint/jenkins"
 String imageVersion = null
-String imageFullName = null
+String imageNameVersion = null
 // Используется для отката
 String imageLatest = null
 
@@ -113,20 +113,20 @@ pipeline {
                     String BuildNumber = env.BUILD_NUMBER
                     assert(BuildNumber instanceof String)
                     imageVersion = Shell.shGetOutput("java -jar ${jenkinsWar} --version").trim() + "-" + BuildNumber
-                    imageFullName = imageName + ":" + imageVersion
+                    imageNameVersion = imageName + ":" + imageVersion
                     withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             // Сохранить последнюю версию
                             imageLatest = Docker.images("${imageName}:latest", true).trim()
 
                             if (useCacheDocker) {
-                                Docker.build(jenkinsDirectory, imageFullName, true)
+                                Docker.build(jenkinsDirectory, imageNameVersion, true)
                             } else {
-                                Docker.build(jenkinsDirectory, imageFullName, false)
+                                Docker.build(jenkinsDirectory, imageNameVersion, false)
                             }
 
                             // latest
-                            Docker.tag(imageFullName, "${imageName}:latest")
+                            Docker.tag(imageNameVersion, "${imageName}:latest")
                         })
                     }
 
@@ -147,7 +147,7 @@ pipeline {
                                 writeFile(file: "docker-compose.yml", text: dockerComposeYml)
 
                                 // Деплой
-                                DockerCompose.down(dockerComposeProjectDirectory)
+                                DockerCompose.down(dockerComposeProjectDirectory, true, true)
                                 DockerCompose.up(dockerComposeProjectDirectory)
                                 Thread.sleep(10000)
                                 Shell.echo(DockerCompose.logs(dockerComposeProjectDirectory))
@@ -189,7 +189,7 @@ pipeline {
                         echo("Останавливаю контейнер...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Shell.sshConnect(env.host, env.user, env.id_rsa, {
-                                DockerCompose.down(dockerComposeProjectDirectory)
+                                DockerCompose.down(dockerComposeProjectDirectory, true, true)
                             })
                         }
                     }
@@ -202,9 +202,9 @@ pipeline {
                     if (exportImage) {
                         echo("Экспортирую образ...")
                         assert(imageName instanceof String)
-                        assert(imageFullName instanceof String)
+                        assert(imageNameVersion instanceof String)
                         String imageExportedName = imageName.replace("/", "-").replace(":", "-")
-                        String imageExportedFullName = imageFullName.replace("/", "-").replace(":", "-")
+                        String imageExportedFullName = imageNameVersion.replace("/", "-").replace(":", "-")
                         // Удаление прошлой сборки. Расширяется только без кавычек
                         if (Shell.shGetStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
                             Shell.sh("rm -f ${imageExportedName}:*.tar")
@@ -212,7 +212,7 @@ pipeline {
                         // Экспорт
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Docker.dockerConnect(env.host, env.user, env.id_rsa, {
-                                Docker.save(imageFullName, "${imageExportedFullName}.tar")
+                                Docker.save(imageNameVersion, "${imageExportedFullName}.tar")
                             })
                         }
                     }
@@ -232,8 +232,8 @@ pipeline {
                                 }
 
                                 // rmi
-                                assert(imageFullName instanceof String)
-                                Docker.removeImage(imageFullName)
+                                assert(imageNameVersion instanceof String)
+                                Docker.removeImage(imageNameVersion)
                             })
                         }
                     }

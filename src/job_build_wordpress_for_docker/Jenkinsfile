@@ -350,7 +350,7 @@ pipeline {
                                 writeFile(file: "docker-compose.yml", text: dockerComposeYml)
 
                                 // Деплой
-                                DockerCompose.down(dockerComposeProjectDirectory)
+                                DockerCompose.down(dockerComposeProjectDirectory, true, true)
                                 DockerCompose.up(dockerComposeProjectDirectory)
                                 Thread.sleep(10000)
                                 Shell.echo(DockerCompose.logs(dockerComposeProjectDirectory))
@@ -392,7 +392,7 @@ pipeline {
                         echo("Останавливаю контейнер...")
                         withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                             Shell.sshConnect(env.host, env.user, env.id_rsa, {
-                                DockerCompose.down(dockerComposeProjectDirectory)
+                                DockerCompose.down(dockerComposeProjectDirectory, true, true)
                             })
                         }
                     }

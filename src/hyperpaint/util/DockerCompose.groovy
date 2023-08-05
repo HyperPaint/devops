@@ -13,8 +13,20 @@ final class DockerCompose {
         return Shell.shGetStatus("docker compose --project-directory ${projectDirectory} create")
     }
 
-    static boolean down(String projectDirectory) {
-        return Shell.shGetStatus("docker compose --project-directory ${projectDirectory} down")
+    static boolean down(String projectDirectory, boolean removeOrphans = false, boolean removeVolumes = false) {
+        if (removeOrphans) {
+            if (removeVolumes) {
+                return Shell.shGetStatus("docker compose --project-directory ${projectDirectory} down --remove-orphans --volumes")
+            } else {
+                return Shell.shGetStatus("docker compose --project-directory ${projectDirectory} down --remove-orphans")
+            }
+        } else {
+            if (removeVolumes) {
+                return Shell.shGetStatus("docker compose --project-directory ${projectDirectory} down --volumes")
+            } else {
+                return Shell.shGetStatus("docker compose --project-directory ${projectDirectory} down")
+            }
+        }
     }
 
     static boolean kill(String projectDirectory) {
