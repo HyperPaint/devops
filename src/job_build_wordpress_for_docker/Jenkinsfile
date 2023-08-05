@@ -67,7 +67,7 @@ if (pluginReleaseFileNameRegex == null) throw new NullPointerException(String.fo
 /**
  * Переменные сценария
  */
-String imageName = "hyperpaint/blog"
+String imageName = "hyperpaint/wordpress"
 String imageVersion = null
 String imageFullName = null
 // Используется для отката
