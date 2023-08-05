@@ -1,0 +1,244 @@
+package job_build_jenkins_for_docker
+
+@Library("devops")
+import hyperpaint.util.Shell
+import hyperpaint.util.Util
+import hyperpaint.util.Docker
+import hyperpaint.util.DockerCompose
+
+Shell.setJenkins(this)
+
+/**
+ * Получение параметров, проверка и назначение значений по-умолчанию
+ */
+Boolean useCacheFile = params.use_cache_file
+Boolean useCacheDocker = params.use_cache_docker
+Boolean deployImage = params.deploy_image
+Boolean testImage = params.test_image
+Boolean exportImage = params.export_image
+Boolean deleteImage = params.delete_image
+
+if (useCacheFile == null) useCacheFile = true
+if (useCacheDocker == null) useCacheDocker = true
+if (deployImage == null) deployImage = true
+if (testImage == null) testImage = true
+if (exportImage == null) exportImage = false
+if (deleteImage == null) deleteImage = false
+
+/**
+ * Получение переменных окружения, которые должны быть заданы
+ */
+String hostCredentials = env.host_credentials
+String sshCredentials = env.ssh_credentials
+String dockerComposeProjectDirectory = env.docker_compose_project_directory
+
+String jenkinsReleaseUrl = env.jenkins
+String jenkinsReleaseHashUrl = env.jenkins_hash
+
+String noEnvString = "Переменная окружения '%s' не установлена"
+if (hostCredentials == null) throw new NullPointerException(String.format(noEnvString, "host_credentials"))
+if (sshCredentials == null) throw new NullPointerException(String.format(noEnvString, "ssh_credentials"))
+if (dockerComposeProjectDirectory == null) throw new NullPointerException(String.format(noEnvString, "docker_compose_project_directory"))
+
+if (jenkinsReleaseUrl == null) throw new NullPointerException(String.format(noEnvString, "jenkins"))
+if (jenkinsReleaseHashUrl == null) throw new NullPointerException(String.format(noEnvString, "jenkins_hash"))
+
+/**
+ * Переменные сценария
+ */
+String imageName = "hyperpaint/jenkins"
+String imageVersion = null
+String imageFullName = null
+// Используется для отката
+String imageLatest = null
+
+// Сутки в секундах
+int cacheLifetime = 86400
+
+String jenkinsDirectory = "build"
+String jenkinsWar = "jenkins.war"
+String jenkinsHash = "jenkins.hash"
+
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: "use_cache_file", defaultValue: true, description: "Использовать ранее загруженные файлы")
+        booleanParam(name: "use_cache_docker", defaultValue: true, description: "Использовать прошлые сборки как кэш")
+        booleanParam(name: "deploy_image", defaultValue: true, description: "Развернуть образ")
+        booleanParam(name: "test_image", defaultValue: true, description: "Тестировать образ")
+        booleanParam(name: "export_image", defaultValue: false, description: "Экспортировать образ")
+        booleanParam(name: "delete_image", defaultValue: false, description: "Не сохранять образ")
+    }
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+    stages {
+        stage("Получаю Jenkins") {
+            steps {
+                script {
+                    echo("Проверяю последнюю версию Jenkins...")
+                    if (useCacheFile) {
+                        String hash1 = "", hash2
+                        if (Shell.shWithStatus("[[ -f ${jenkinsHash} ]]")) {
+                            hash1 = readFile(jenkinsHash)
+                        }
+                        Util.downloadFile(jenkinsReleaseHashUrl, jenkinsHash, cacheLifetime)
+                        hash2 = readFile(jenkinsHash)
+                        if (hash1 != hash2) {
+                            // Есть обновление
+                            Util.downloadFile(jenkinsReleaseUrl, jenkinsWar, -1)
+                        }
+                    } else {
+                        Util.downloadFile(jenkinsReleaseHashUrl, jenkinsHash, cacheLifetime)
+                        Util.downloadFile(jenkinsReleaseUrl, jenkinsWar)
+                    }
+                }
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                script {
+                    echo("Копирую зависимые файлы контейнера...")
+                    if (Shell.shWithStatus("[[ -d '${jenkinsDirectory}' ]]")) {
+                        Shell.shOrFail("rm -rf '${jenkinsDirectory}'")
+                    }
+                    Shell.shOrFail("mkdir '${jenkinsDirectory}'")
+                    Shell.shOrFail("cp -r '${jenkinsWar}' '${jenkinsDirectory}'")
+                    Shell.shOrFail("cp -r '${jenkinsHash}' '${jenkinsDirectory}'")
+                    Shell.shOrFail("cp -r 'src/job_build_jenkins_for_docker/Dockerfile' '${jenkinsDirectory}/'")
+                    Shell.shOrFail("cp -r 'src/job_build_jenkins_for_docker/scripts' '${jenkinsDirectory}/'")
+
+                    echo("Собираю контейнер...")
+                    String BuildNumber = env.BUILD_NUMBER
+                    assert(BuildNumber instanceof String)
+                    imageVersion = Shell.shWithOutput("java -jar ${jenkinsWar} --version").trim() + "-" + BuildNumber
+                    imageFullName = imageName + ":" + imageVersion
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Docker.dockerConnect(env.host, env.user, env.id_rsa, {
+                            // Сохранить последнюю версию
+                            imageLatest = Docker.imagesLatest(imageName, true).trim()
+
+                            if (useCacheDocker) {
+                                Docker.build(imageFullName, jenkinsDirectory, true)
+                            } else {
+                                Docker.build(imageFullName, jenkinsDirectory, false)
+                            }
+
+                            // latest
+                            Docker.tag(imageFullName, "${imageName}:latest")
+                        })
+                    }
+
+                    // Директория больше не нужна
+                    Shell.shOrFail("rm -rf '${jenkinsDirectory}/'")
+                }
+            }
+        }
+        stage("Docker Deploy") {
+            steps {
+                script {
+                    if (deployImage) {
+                        echo("Развёртываю контейнер...")
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                                // Форматированный конфиг для скачивания
+                                String dockerComposeYml = DockerCompose.config(dockerComposeProjectDirectory)
+                                writeFile(file: "docker-compose.yml", text: dockerComposeYml)
+
+                                // Деплой
+                                DockerCompose.down(dockerComposeProjectDirectory)
+                                DockerCompose.up(dockerComposeProjectDirectory)
+                                Thread.sleep(10000)
+                                Shell.echo(DockerCompose.logs(dockerComposeProjectDirectory))
+
+                                String result = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                List<String> containerIds = new ArrayList<>()
+                                containerIds.addAll(result.split("\n"))
+                                containerIds.remove("")
+                                echo("Развёрнуто ${containerIds.size()} контейнеров")
+                            })
+                        }
+                    } else {
+                        echo("Пропускаю развёртывание...")
+                    }
+                }
+            }
+        }
+        stage("Docker Test && Down") {
+            steps {
+                script {
+                    try {
+                        if (deployImage && testImage) {
+                            echo("Начинаю тестирование...")
+                            withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                                Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                                    echo("Тест: Перезагрузка")
+                                    DockerCompose.restart(dockerComposeProjectDirectory)
+                                    Thread.sleep(10000)
+                                    String restartResult = DockerCompose.ps(dockerComposeProjectDirectory, true)
+                                    // curl с проверкой на код 200
+                                })
+                            }
+                        } else {
+                            echo("Пропускаю тестирование...")
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace()
+                    } finally {
+                        echo("Останавливаю контейнер...")
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                                DockerCompose.down(dockerComposeProjectDirectory)
+                            })
+                        }
+                    }
+                }
+            }
+        }
+        stage("Docker Save && Delete") {
+            steps {
+                script {
+                    if (exportImage) {
+                        echo("Экспортирую образ...")
+                        assert(imageName instanceof String)
+                        assert(imageFullName instanceof String)
+                        String imageExportedName = imageName.replace("/", "-").replace(":", "-")
+                        String imageExportedFullName = imageFullName.replace("/", "-").replace(":", "-")
+                        // Удаление прошлой сборки. Расширяется только без кавычек
+                        if (Shell.shWithStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
+                            Shell.shOrFail("rm -f ${imageExportedName}:*.tar")
+                        }
+                        // Экспорт
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Docker.dockerConnect(env.host, env.user, env.id_rsa, {
+                                Docker.save(imageFullName, "${imageExportedFullName}.tar")
+                            })
+                        }
+                    }
+
+                    if (deleteImage) {
+                        echo("Удаляю образ...")
+                        withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                            Docker.dockerConnect(env.host, env.user, env.id_rsa, {
+                                // Установить последнюю версию
+                                assert(imageLatest instanceof String)
+                                if (imageLatest == "") {
+                                    // Это первая сборка
+                                    Docker.rmi("${imageName}:latest")
+                                } else {
+                                    // Есть предпоследняя сборка
+                                    Docker.tag(imageLatest, "${imageName}:latest")
+                                }
+
+                                // rmi
+                                assert(imageFullName instanceof String)
+                                Docker.rmi(imageFullName)
+                            })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
