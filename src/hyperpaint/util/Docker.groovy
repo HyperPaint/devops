@@ -146,7 +146,6 @@ final class Docker {
         Thread.sleep(10000)
         try {
             version()
-            DockerCompose.version()
             code.run()
         } catch (Exception e) {
             e.printStackTrace()
