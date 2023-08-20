@@ -175,7 +175,7 @@ pipeline {
                         }
                     }
 
-                    Runnable releasesPageRunnable = () -> {
+                    Runnable releasesPageRunnable = {
                         Util.downloadFile(url, "releases.html", cacheLifetime)
                         /* Найти на странице с релизами все ссылки href с тегом <a> */
                         String releasesHTML = readFile("releases.html")
@@ -232,7 +232,7 @@ pipeline {
                         Util.unarchiveFile(fileName, buildDirectory, true)
                     }
 
-                    Runnable distributiveRunnable = () -> {
+                    Runnable distributiveRunnable = {
                         /* Скачать дистрибутив */
                         String downloadUrl = url
                         String fileName
