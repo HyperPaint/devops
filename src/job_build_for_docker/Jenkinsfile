@@ -335,13 +335,11 @@ pipeline {
                         urlsList.clear()
                         size = absoluteUrlsList.size()
                         for (int i = 0; i < size; i++) {
-                            Shell.echo("${i}\t/\t${size}")
                             String currentUrl = absoluteUrlsList.get(i)
 
                             Boolean success = true
-                            for (int regex = 0; i < appDistributiveUrlRegexCount; regex++) {
+                            for (int regex = 0; regex < appDistributiveUrlRegexCount; regex++) {
                                 if (!Regex.find(currentUrl, regexArray[regex])) {
-                                    Shell.echo("Ссылка не подходит ${currentUrl} ${regexArray[regex]}")
                                     success = false
                                     break
                                 }
@@ -350,7 +348,6 @@ pipeline {
                             if (success) {
                                 // Подходящая ссылка
                                 if (!urlsList.contains(currentUrl)) {
-                                    Shell.echo("Ссылка подходит ${currentUrl}")
                                     // Уникальная ссылка
                                     urlsList.add(currentUrl)
                                 }
