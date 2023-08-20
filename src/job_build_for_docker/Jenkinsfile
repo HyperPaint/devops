@@ -146,7 +146,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     /* Если ссылок несколько, то запросить ввод */
     String downloadUrl = null
     if (urlsList.size() == 0) {
-        Shell.error("Найдено ${urlsList.size()} ссылок")
+        Shell.error("Найдено ${urlsList.size()} ссылок \n${absoluteUrlsList.join("\n")}")
     } else {
         Shell.echo("Найдено ${urlsList.size()} ссылок")
         if (urlsList.size() == 1) {
