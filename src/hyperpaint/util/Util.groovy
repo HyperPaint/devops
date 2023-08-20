@@ -33,22 +33,23 @@ final class Util {
             // Директории нет
             Shell.sh("mkdir '${destination}'")
         }
-        if (Regex.find(file, "^.*.zip\$")) {
+        if (Regex.find(file, "^.*\\.zip\$")) {
             Shell.echo("Распаковываю файл ${file} как zip архив")
             Shell.sh("unzip -q '${file}' -d '${destination}'")
-        } else if (Regex.find(file, "^.*.rar\$")) {
+        } else if (Regex.find(file, "^.*\\.rar\$")) {
             // Не поддерживается alpine
-            Shell.echo("Распаковываю файл ${file} как rar архив")
             Shell.error("Формат rar не поддерживается")
-        } else if (Regex.find(file, "^.*.tar.gz\$")) {
+        } else if (Regex.find(file, "^.*\\.tar\\.gz\$")) {
             Shell.echo("Распаковываю файл ${file} как tar.gz архив")
             Shell.sh("tar x -zf '${file}' -C '${destination}'")
-        } else if (Regex.find(file, "^.*.tar.xz\$")) {
+        } else if (Regex.find(file, "^.*\\.tar\\.xz\$")) {
             Shell.echo("Распаковываю файл ${file} как tar.xz архив")
             Shell.sh("tar x -Jf '${file}' -C '${destination}'")
-        } else if (Regex.find(file, "^.*.tar\$")) {
+        } else if (Regex.find(file, "^.*\\.tar\$")) {
             Shell.echo("Распаковываю файл ${file} как tar архив")
             Shell.sh("tar x -f '${file}' -C '${destination}'")
+        } else {
+            Shell.error("Формат не поддерживается")
         }
     }
 }
