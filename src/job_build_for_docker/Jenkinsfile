@@ -343,6 +343,7 @@ pipeline {
                         Shell.echo(String.format(foundEnvString, "app_distributive_url_regex_count"))
                         if (MyGlobal.appDistributiveUrlRegexCount != 0) {
                             for (int regexIndex = 1; regexIndex <= MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
+                                Shell.echo("app_distributive_url_regex${regexIndex} = ${env["app_distributive_url_regex${regexIndex}"]}")
                                 if (env["app_distributive_url_regex${regexIndex}"] == null) {
                                     Shell.error(String.format(notFoundEnvStringError, "app_distributive_url_regex${regexIndex}"))
                                 } else {
