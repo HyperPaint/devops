@@ -87,99 +87,151 @@ pipeline {
             steps {
                 script {
                     /* Задание стандартных параметров */
-                    String noParamString = "Параметр '%s' не задан, использую стандартное значение '%s'"
+                    String notFoundParamStringSetDefault = "Параметр '%s' не найден, использую стандартное значение '%s'"
+                    String foundParamString = "Параметр '%s' найден"
 
                     if (useLatestVersion == null) {
                         useLatestVersion = true
-                        Shell.echo(String.format(noParamString, "use_latest_version", useLatestVersion.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_latest_version", useLatestVersion.toString()))
+                    } else {
+                        Shell.echo(String.format(foundParamString, "use_latest_version"))
                     }
+
                     if (useCacheFile == null) {
                         useCacheFile = true
-                        Shell.echo(String.format(noParamString, "use_cache_file", useCacheFile.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_file", useCacheFile.toString()))
+                    } else {
+                        Shell.echo(String.format(foundParamString, "use_cache_file"))
                     }
+
                     if (useCacheDocker == null) {
                         useCacheDocker = true
-                        Shell.echo(String.format(noParamString, "use_cache_docker", useCacheDocker.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_docker", useCacheDocker.toString()))
+                    } else {
+                        Shell.echo(String.format(foundParamString, "use_cache_docker"))
                     }
+
                     if (deployImage == null) {
                         deployImage = true
-                        Shell.echo(String.format(noParamString, "deploy_image", deployImage.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "deploy_image", deployImage.toString()))
+                    } else {
+                        Shell.echo(String.format(foundParamString, "deploy_image"))
                     }
+
                     if (exportImage == null) {
                         exportImage = true
-                        Shell.echo(String.format(noParamString, "export_image", exportImage.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "export_image", exportImage.toString()))
+                    } else {
+                        Shell.echo(String.format(foundParamString, "export_image"))
                     }
+
                     if (deleteImage == null) {
                         deleteImage = true
-                        Shell.echo(String.format(noParamString, "delete_image", deleteImage.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "delete_image", deleteImage.toString()))
+                    } else {
+                        Shell.echo(String.format(foundParamString, "delete_image"))
                     }
 
                     /* Проверка переменных окружения */
                     /* Проверка необязательных переменных окружения */
-                    String noEnvStringContinue = "Переменная окружения '%s' не задана, использую стандартное значение '%s'"
+                    String notFoundEnvStringSetDefault = "Переменная окружения '%s' не найдена, использую стандартное значение '%s'"
                     /* Проверка обязательных переменных окружения */
-                    String noEnvStringError = "Переменная окружения '%s' не задана, выполнение невозможно"
+                    String notFoundEnvStringError = "Переменная окружения '%s' не найдена, выполнение невозможно"
+                    String foundEnvString = "Переменная окружения '%s' найдена"
 
                     if (hostCredentials == null) {
-                        Shell.error(String.format(noEnvStringError, "host_credentials"))
+                        Shell.error(String.format(notFoundEnvStringError, "host_credentials"))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "host_credentials"))
                     }
 
                     if (sshCredentials == null) {
-                        Shell.error(String.format(noEnvStringError, "ssh_credentials"))
+                        Shell.error(String.format(notFoundEnvStringError, "ssh_credentials"))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "ssh_credentials"))
                     }
 
                     if (dockerComposeProjectDirectory == null) {
-                        Shell.error(String.format(noEnvStringError, "docker_compose_project_directory"))
+                        Shell.error(String.format(notFoundEnvStringError, "docker_compose_project_directory"))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "docker_compose_project_directory"))
                     }
 
                     if (imageName == null) {
-                        Shell.error(String.format(noEnvStringError, "image_name"))
+                        Shell.error(String.format(notFoundEnvStringError, "image_name"))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "image_name"))
                     }
 
                     if (appUrl == null) {
-                        Shell.error(String.format(noEnvStringError, "app_url"))
+                        Shell.error(String.format(notFoundEnvStringError, "app_url"))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "app_url"))
                     }
 
                     if (appUrlReverse == null) {
                         appUrlReverse = false
-                        Shell.echo(String.format(noEnvStringContinue, "app_url_reverse", appUrlReverse))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_url_reverse", appUrlReverse))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "app_url_reverse"))
                     }
 
                     if (appDistributiveUrlRegexCount == null) {
                         appDistributiveUrlRegexCount = 0
-                        Shell.echo(String.format(noEnvStringContinue, "app_distributive_url_regex_count", appDistributiveUrlRegexCount))
-                    } else if (appDistributiveUrlRegexCount != 0) {
-                        for (int i = 1; i <= appDistributiveUrlRegexCount; i++) {
-                            if (env["app_distributive_url_regex${i}"] == null) {
-                                Shell.error(String.format(noEnvStringError, "app_distributive_url_regex${i}"))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_distributive_url_regex_count", appDistributiveUrlRegexCount))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "app_distributive_url_regex_count"))
+                        if (appDistributiveUrlRegexCount != 0) {
+                            for (int i = 1; i <= appDistributiveUrlRegexCount; i++) {
+                                if (env["app_distributive_url_regex${i}"] == null) {
+                                    Shell.error(String.format(notFoundEnvStringError, "app_distributive_url_regex${i}"))
+                                } else {
+                                    Shell.echo(String.format(foundEnvString, "app_distributive_url_regex${i}"))
+                                }
                             }
                         }
                     }
 
                     if (themesCount == null) {
                         themesCount = 0
-                        Shell.echo(String.format(noEnvStringContinue, "themes_count", themesCount.toString()))
-                    } else if (themesCount != 0) {
-                        if (themesDirectory == null) {
-                            Shell.error(String.format(noEnvStringError, "themes_directory"))
-                        }
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "themes_count", themesCount.toString()))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "themes_count"))
+                        if (themesCount != 0) {
+                            if (themesDirectory == null) {
+                                Shell.error(String.format(notFoundEnvStringError, "themes_directory"))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "themes_directory"))
+                            }
 
-                        for (int i = 1; i <= themesCount; i++) {
-                            assert(env["theme_url${i}"] != null)
-                        }
+                            for (int i = 1; i <= themesCount; i++) {
+                                if (env["theme_url${i}"] == null) {
+                                    Shell.error(String.format(notFoundEnvStringError, "theme_url${i}"))
+                                } else {
+                                    Shell.echo(String.format(foundEnvString, "theme_url${i}"))
+                                }
+                            }
 
-                        if (themeUrlReverse == null) {
-                            themeUrlReverse = false
-                            Shell.echo(String.format(noEnvStringContinue, "theme_url_reverse", themeUrlReverse))
-                        }
+                            if (themeUrlReverse == null) {
+                                themeUrlReverse = false
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_url_reverse", themeUrlReverse))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "theme_url_reverse"))
+                            }
 
-                        if (themeDistributiveUrlRegexCount == null) {
-                            themeDistributiveUrlRegexCount = 0
-                            Shell.echo(String.format(noEnvStringContinue, "theme_distributive_url_regex_count", themeDistributiveUrlRegexCount))
-                        } else if (themeDistributiveUrlRegexCount != 0) {
-                            for (int i = 1; i <= themeDistributiveUrlRegexCount; i++) {
-                                if (env["theme_distributive_url_regex${i}"] == null) {
-                                    Shell.error(String.format(noEnvStringError, "theme_distributive_url_regex${i}"))
+                            if (themeDistributiveUrlRegexCount == null) {
+                                themeDistributiveUrlRegexCount = 0
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_distributive_url_regex_count", themeDistributiveUrlRegexCount))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "theme_distributive_url_regex_count"))
+                                if (themeDistributiveUrlRegexCount != 0) {
+                                    for (int i = 1; i <= themeDistributiveUrlRegexCount; i++) {
+                                        if (env["theme_distributive_url_regex${i}"] == null) {
+                                            Shell.error(String.format(notFoundEnvStringError, "theme_distributive_url_regex${i}"))
+                                        } else {
+                                            Shell.echo(String.format(foundEnvString, "theme_distributive_url_regex${i}"))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -187,28 +239,44 @@ pipeline {
 
                     if (pluginsCount == null) {
                         pluginsCount = 0
-                        Shell.echo(String.format(noEnvStringContinue, "plugins_count", pluginsCount.toString()))
-                    } else if (pluginsCount != 0) {
-                        if (pluginsDirectory == null) {
-                            Shell.error(String.format(noEnvStringError, "plugins_directory"))
-                        }
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "plugins_count", pluginsCount.toString()))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "plugins_count"))
+                        if (pluginsCount != 0) {
+                            if (pluginsDirectory == null) {
+                                Shell.error(String.format(notFoundEnvStringError, "plugins_directory"))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "plugins_directory"))
+                            }
 
-                        for (int i = 1; i <= pluginsCount; i++) {
-                            assert(env["plugin_url${i}"] != null)
-                        }
+                            for (int i = 1; i <= pluginsCount; i++) {
+                                if (env["plugin_url${i}"] == null) {
+                                    Shell.error(String.format(notFoundEnvStringError, "plugin_url${i}"))
+                                } else {
+                                    Shell.echo(String.format(foundEnvString, "plugin_url${i}"))
+                                }
+                            }
 
-                        if (pluginUrlReverse == null) {
-                            pluginUrlReverse = false
-                            Shell.echo(String.format(noEnvStringContinue, "plugin_url_reverse", pluginUrlReverse))
-                        }
+                            if (pluginUrlReverse == null) {
+                                pluginUrlReverse = false
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_url_reverse", pluginUrlReverse))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "plugin_url_reverse"))
+                            }
 
-                        if (pluginDistributiveUrlRegexCount == null) {
-                            pluginDistributiveUrlRegexCount = 0
-                            Shell.echo(String.format(noEnvStringContinue, "plugin_distributive_url_regex_count", pluginDistributiveUrlRegexCount))
-                        } else if (pluginDistributiveUrlRegexCount != 0) {
-                            for (int i = 1; i <= pluginDistributiveUrlRegexCount; i++) {
-                                if (env["plugin_distributive_url_regex${i}"] == null) {
-                                    Shell.error(String.format(noEnvStringError, "plugin_distributive_url_regex${i}"))
+                            if (pluginDistributiveUrlRegexCount == null) {
+                                pluginDistributiveUrlRegexCount = 0
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_distributive_url_regex_count", pluginDistributiveUrlRegexCount))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex_count"))
+                                if (pluginDistributiveUrlRegexCount != 0) {
+                                    for (int i = 1; i <= pluginDistributiveUrlRegexCount; i++) {
+                                        if (env["plugin_distributive_url_regex${i}"] == null) {
+                                            Shell.error(String.format(notFoundEnvStringError, "plugin_distributive_url_regex${i}"))
+                                        } else {
+                                            Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex${i}"))
+                                        }
+                                    }
                                 }
                             }
                         }
