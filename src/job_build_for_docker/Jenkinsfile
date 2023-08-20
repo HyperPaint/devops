@@ -1,0 +1,265 @@
+package job_build_for_docker
+
+@Library("devops")
+import hyperpaint.util.Regex
+import hyperpaint.util.Shell
+import hyperpaint.util.Util
+
+Shell.setJenkins(this)
+
+/* Получение параметров, проверка и назначение значений по-умолчанию */
+/** Выбирать последние версии автоматически */
+Boolean useLatestVersion = params.use_latest_version
+Boolean useLatestVersionDefault = true
+String useLatestVersionDescription = "Выбирать последние версии автоматически"
+/** Использовать кэш загрузок */
+Boolean useCacheFile = params.use_cache_file
+Boolean useCacheFileDefault = true
+String useCacheFileDescription = "Использовать кэш загрузок"
+/** Использовать кэш сборок */
+Boolean useCacheDocker = params.use_cache_docker
+Boolean useCacheDockerDefault = true
+String useCacheDockerDescription = "Использовать кэш сборок"
+/** Деплой и проверка состояния контейнера */
+Boolean deployImage = params.deploy_image
+Boolean deployImageDefault = true
+String deployImageDescription = "Деплой и проверка состояния контейнера"
+/** Экспортировать образ */
+Boolean exportImage = params.export_image
+Boolean exportImageDefault = true
+String exportImageDescription = "Экспортировать образ"
+/** Удалить образ */
+Boolean deleteImage = params.delete_image
+Boolean deleteImageDefault = true
+String deleteImageDescription = "Удалить образ"
+
+/* Получение обязательных переменных окружения */
+String hostCredentials = env.host_credentials
+String sshCredentials = env.ssh_credentials
+String dockerComposeProjectDirectory = env.docker_compose_project_directory
+
+String imageName = env.image_name
+String url = env.url
+String distributiveUrlRegex = env.distributive_url_regex
+Integer themes = env.themes.toInteger()
+String themesDirectory = env.themes_directory
+Integer plugins = env.plugins.toInteger()
+String pluginsDirectory = env.plugins_directory
+
+/* Константы */
+int cacheLifetime = 86400
+String buildDirectory = "build-directory"
+
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: "use_latest_version", defaultValue: useLatestVersionDefault, description: useLatestVersionDescription)
+        booleanParam(name: "use_cache_file", defaultValue: useCacheFileDefault, description: useCacheFileDescription)
+        booleanParam(name: "use_cache_docker", defaultValue: useCacheDockerDefault, description: useCacheDockerDescription)
+        booleanParam(name: "deploy_image", defaultValue: deployImageDefault, description: deployImageDescription)
+        booleanParam(name: "export_image", defaultValue: exportImageDefault, description: exportImageDescription)
+        booleanParam(name: "delete_image", defaultValue: deleteImageDefault, description: deleteImageDescription)
+    }
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+    stages {
+        stage("Параметры и переменные окружения") {
+            steps {
+                script {
+                    /* Задание стандартных параметров */
+                    String noParamString = "Параметр '%s' не задан, использую стандартное значение '%s'"
+
+                    if (useLatestVersion == null) {
+                        useLatestVersion = true
+                        Shell.echo(String.format(noParamString, "use_latest_version", useLatestVersion.toString()))
+                    }
+                    if (useCacheFile == null) {
+                        useCacheFile = true
+                        Shell.echo(String.format(noParamString, "use_cache_file", useCacheFile.toString()))
+                    }
+                    if (useCacheDocker == null) {
+                        useCacheDocker = true
+                        Shell.echo(String.format(noParamString, "use_cache_docker", useCacheDocker.toString()))
+                    }
+                    if (deployImage == null) {
+                        deployImage = true
+                        Shell.echo(String.format(noParamString, "deploy_image", deployImage.toString()))
+                    }
+                    if (exportImage == null) {
+                        exportImage = true
+                        Shell.echo(String.format(noParamString, "export_image", exportImage.toString()))
+                    }
+                    if (deleteImage == null) {
+                        deleteImage = true
+                        Shell.echo(String.format(noParamString, "delete_image", deleteImage.toString()))
+                    }
+
+                    /* Проверка обязательных переменных окружения */
+                    String noEnvString1 = "Переменная окружения '%s' не задана, выполнение невозможно"
+
+                    if (hostCredentials == null) {
+                        Shell.error(String.format(noEnvString1, "host_credentials"))
+                    }
+                    if (sshCredentials == null) {
+                        Shell.error(String.format(noEnvString1, "ssh_credentials"))
+                    }
+                    if (dockerComposeProjectDirectory == null) {
+                        Shell.error(String.format(noEnvString1, "docker_compose_project_directory"))
+                    }
+
+                    if (imageName == null) {
+                        Shell.error(String.format(noEnvString1, "image_name"))
+                    }
+                    if (url == null) {
+                        Shell.error(String.format(noEnvString1, "url"))
+                    }
+
+                    /* Проверка необязательных переменных окружения */
+                    String noEnvString2 = "Переменная окружения '%s' не задана, использую стандартное значение '%s'"
+
+                    if (distributiveUrlRegex == null) {
+                        distributiveUrlRegex = "zip|rar|tar\\.gz|tar\\.xz|tar"
+                        Shell.echo(String.format(noEnvString2, "distributive_url_regex"))
+                    }
+
+                    if (themes == null) {
+                        themes = 0
+                        Shell.echo(String.format(noEnvString2, "themes", themes.toString()))
+                    } else if (themes != 0) {
+                        if (themesDirectory == null) {
+                            Shell.error(String.format(noEnvString1, "themesDirectory"))
+                        }
+
+                        for (int i = 1; i <= themes; i++) {
+                            assert(env["theme_url${i}"] != null)
+                        }
+                    }
+
+                    if (distributiveUrlRegex == null) {
+                        distributiveUrlRegex = "\\.zip|\\.tar"
+                        Shell.echo(String.format(noEnvString2, "distributive_url_regex"))
+                    }
+
+                    if (plugins == null) {
+                        plugins = 0
+                        Shell.echo(String.format(noEnvString2, "plugins", plugins.toString()))
+                    } else if (plugins != 0) {
+                        if (pluginsDirectory == null) {
+                            Shell.error(String.format(noEnvString1, "pluginsDirectory"))
+                        }
+
+                        for (int i = 1; i <= plugins; i++) {
+                            assert(env["plugin_url${i}"] != null)
+                        }
+                    }
+                }
+            }
+        }
+        stage("Получаю дистрибутив") {
+            steps {
+                script {
+                    /* Распарсить параметры из ссылки */
+                    Boolean isReleasesPage = Regex.find(url, "[\\?\\&]is_releases_page=1")
+                    if (isReleasesPage) {
+                        Shell.echo("${url} - Страница HTML с ссылками")
+                    }
+                    Boolean isDistributive = Regex.find(url, "[\\?\\&]is_distributive=1")
+                    Boolean isFileNameDefined = Regex.find(url, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
+                    if (isDistributive && !isReleasesPage) {
+                        if (isFileNameDefined) {
+                            Shell.echo("${url} - Архив дистрибутива с именем")
+                        } else {
+                            Shell.echo("${url} - Архив дистрибутива")
+                        }
+                    }
+
+                    Runnable releasesPageRunnable = new Runnable() {
+                        @Override
+                        void run() {
+                            Util.downloadFile(url, "releases.html", cacheLifetime)
+                            /* Найти на странице с релизами все ссылки href с тегом <a> */
+                            String releasesHTML = readFile("releases.html")
+                            List<String> urls = Regex.groupAll(releasesHTML, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
+
+                            /* Преобразование относительных ссылок в абсолютные */
+                            Shell.echo("Преобразовываю относительные ссылки в абсолютные")
+                            List<String> absoluteUrls = new ArrayList<>()
+                            int size = urls.size()
+                            for (int i = 0; i < size; i++) {
+                                String currentUrl = urls.get(i)
+                                if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+\$")) {
+                                    /* Относительная ссылка */
+                                    absoluteUrls.add(url + currentUrl)
+                                } else {
+                                    /* Абсолютная ссылка */
+                                    absoluteUrls.add(currentUrl)
+                                }
+                            }
+
+                            /* Отобрать только те ссылки, которые подходят по регулярному выражению */
+                            Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
+                            urls = new ArrayList<>()
+                            size = absoluteUrls.size()
+                            for (int i = 0; i < size; i++) {
+                                String currentUrl = absoluteUrls.get(i)
+                                if (Regex.find(currentUrl, distributiveUrlRegex)) {
+                                    urls.add(currentUrl)
+                                }
+                            }
+
+                            /* Если ссылок несколько запросить ввод */
+                            String downloadUrl = null
+                            size = urls.size()
+                            if (size == 0) {
+                                Shell.error("Найдено ${size} ссылок")
+                            } else {
+                                Shell.echo("Найдено ${size} ссылок")
+                                if (size == 1) {
+                                    downloadUrl = urls.get(0)
+                                } else {
+                                    downloadUrl = input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urls.join('\n'))]).toString()
+                                }
+                            }
+
+                            /* Скачать дистрибутив */
+                            String fileName = null
+                            if (isFileNameDefined) {
+                                fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
+                            } else {
+                                fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
+                            }
+                            Util.downloadFile(downloadUrl, fileName)
+                            Util.unarchiveFile(fileName, buildDirectory, true)
+                        }
+                    }
+
+                    Runnable distributiveRunnable = new Runnable() {
+                        @Override
+                        void run() {
+                            /* Скачать дистрибутив */
+                            String downloadUrl = url
+                            String fileName = null
+                            if (isFileNameDefined) {
+                                fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
+                            } else {
+                                fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
+                            }
+                            Util.downloadFile(downloadUrl, fileName)
+                            Util.unarchiveFile(fileName, buildDirectory, true)
+                        }
+                    }
+
+                    if (isReleasesPage) {
+                        releasesPageRunnable.run()
+                    } else if (isDistributive) {
+                        distributiveRunnable.run()
+                    } else {
+                        releasesPageRunnable.run()
+                    }
+                }
+            }
+        }
+    }
+}
