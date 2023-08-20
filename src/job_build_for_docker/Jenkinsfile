@@ -70,6 +70,9 @@ class MyGlobal {
     /* Константы */
     static int cacheLifetime = 86400
     static String buildDirectory = "build-directory"
+    static String artifactFileNameRegex = "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])"
+    static String releasesPageRegex = "[\\?\\&]is_releases_page=1"
+    static String distributiveRegex = "[\\?\\&]is_distributive=1"
 }
 
 MyGlobal.jenkins = this
@@ -100,8 +103,8 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     /* Преобразование относительных ссылок в абсолютные */
     Shell.echo("Преобразовываю относительные ссылки в абсолютные")
     List<String> absoluteUrlsList = new ArrayList<>()
-    for (int i = 0; i < urlsList.size(); i++) {
-        String currentUrl = urlsList.get(i)
+    for (int urlIndex = 0; urlIndex < urlsList.size(); urlIndex++) {
+        String currentUrl = urlsList.get(urlIndex)
         if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$")) {
             /* Относительная ссылка */
             absoluteUrlsList.add(url + currentUrl)
@@ -114,12 +117,12 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     /* Отобрать только те ссылки, которые подходят по регулярному выражению */
     Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
     urlsList.clear()
-    for (int i = 0; i < absoluteUrlsList.size(); i++) {
-        String currentUrl = absoluteUrlsList.get(i)
+    for (int urlIndex = 0; urlIndex < absoluteUrlsList.size(); urlIndex++) {
+        String currentUrl = absoluteUrlsList.get(urlIndex)
 
         Boolean success = true
-        for (int regex = 0; regex < regexArray.size(); regex++) {
-            if (!Regex.find(currentUrl, regexArray[regex])) {
+        for (int regexIndex = 0; regexIndex < regexArray.size(); regexIndex++) {
+            if (!Regex.find(currentUrl, regexArray[regexIndex])) {
                 success = false
                 break
             }
@@ -180,6 +183,26 @@ static void distributive(Boolean isArtifactFileNameDefined, String url, String d
     }
     if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
     Util.unarchiveFile(fileName, destination, true)
+}
+
+static void isReleasesPageEcho(String url, Boolean isReleasesPage, Boolean isArtifactFileNameDefined) {
+    if (isReleasesPage) {
+        if (isArtifactFileNameDefined) {
+            Shell.echo("${url} - Страница HTML с ссылками с именем артефакта")
+        } else {
+            Shell.echo("${url} - Страница HTML с ссылками")
+        }
+    }
+}
+
+static void isDistributiveEcho(String url, Boolean isDistributive, Boolean isReleasesPage, Boolean isArtifactFileNameDefined) {
+    if (isDistributive && !isReleasesPage) {
+        if (isArtifactFileNameDefined) {
+            Shell.echo("${url} - Архив дистрибутива с именем артефакта")
+        } else {
+            Shell.echo("${url} - Архив дистрибутива")
+        }
+    }
 }
 
 pipeline {
@@ -425,29 +448,16 @@ pipeline {
             steps {
                 script {
                     /* Распарсить параметры из ссылки */
-                    Boolean isArtifactFileNameDefined = Regex.find(MyGlobal.appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
-                    Boolean isReleasesPage = Regex.find(MyGlobal.appUrl, "[\\?\\&]is_releases_page=1")
-                    if (isReleasesPage) {
-                        if (isArtifactFileNameDefined) {
-                            Shell.echo("${MyGlobal.appUrl} - Страница HTML с ссылками с именем артефакта")
-                        } else {
-                            Shell.echo("${MyGlobal.appUrl} - Страница HTML с ссылками")
-                        }
-                    }
-                    Boolean isDistributive = Regex.find(MyGlobal.appUrl, "[\\?\\&]is_distributive=1")
-                    if (isDistributive && !isReleasesPage) {
-                        if (isArtifactFileNameDefined) {
-                            Shell.echo("${MyGlobal.appUrl} - Архив дистрибутива с именем артефакта")
-                        } else {
-                            Shell.echo("${MyGlobal.appUrl} - Архив дистрибутива")
-                        }
-                    }
+                    Boolean isArtifactFileNameDefined = Regex.find(MyGlobal.appUrl, MyGlobal.artifactFileNameRegex)
+                    Boolean isReleasesPage = Regex.find(MyGlobal.appUrl, MyGlobal.releasesPageRegex)
+                    isReleasesPageEcho(MyGlobal.appUrl, isReleasesPage, isArtifactFileNameDefined)
+                    Boolean isDistributive = Regex.find(MyGlobal.appUrl, MyGlobal.distributiveRegex)
+                    isDistributiveEcho(MyGlobal.appUrl, isDistributive, isReleasesPage, isArtifactFileNameDefined)
 
-                    Runnable releasesPageRunnable = {
-                        //String artifactFileName = Regex.group(appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
+                    Closure releasesPageRunnable = {
                         String[] regexArray = new String[MyGlobal.appDistributiveUrlRegexCount]
-                        for (int i = 0; i < MyGlobal.appDistributiveUrlRegexCount; i++) {
-                            regexArray[i] = env["app_distributive_url_regex${i+1}"]
+                        for (int regexIndex = 0; regexIndex < MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
+                            regexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
                         }
                         releasesPage(null, MyGlobal.appUrl, regexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory)
                     }
@@ -462,5 +472,59 @@ pipeline {
                 }
             }
         }
+
+        stage("Получаю темы") {
+            steps {
+                script {
+                    for (int theme = 1;  theme <= MyGlobal.themesCount; theme++) {
+                        String url = env["theme_url${theme}"]
+
+                        Boolean isArtifactFileNameDefined = Regex.find(url, MyGlobal.artifactFileNameRegex)
+                        Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
+                        isReleasesPageEcho(url, isReleasesPage, isArtifactFileNameDefined)
+                        Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
+                        isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactFileNameDefined)
+
+                        Closure releasesPageRunnable = {
+                            String artifactFileName = Regex.group(url, MyGlobal.artifactFileNameRegex)
+                            String[] regexArray = new String[MyGlobal.themeDistributiveUrlRegexCount]
+                            for (int regexIndex = 0; regexIndex < MyGlobal.themeDistributiveUrlRegexCount; regexIndex++) {
+                                regexArray[regexIndex] = env["theme_distributive_url_regex${regexIndex+1}"]
+                            }
+                            releasesPage(artifactFileName, url, regexArray, MyGlobal.themeUrlReverse, MyGlobal.themesDirectory)
+                        }
+
+                        if (isReleasesPage) {
+                            releasesPageRunnable.run()
+                        } else if (isDistributive) {
+                            distributive(isArtifactFileNameDefined, url, MyGlobal.themesDirectory)
+                        } else {
+                            releasesPageRunnable.run()
+                        }
+                    }
+                }
+            }
+        }
+        stage("Получаю плагины") {
+
+        }
+        /*
+        stage("Docker Build") {
+            // docker build
+        }
+        stage("Docker Deploy") {
+            // docker down
+            // docker config
+            // docker up
+            // docker life-check
+            // docker down
+        }
+        stage("Экспортирую образ") {
+            // docker save
+        }
+        stage("Удаляю образ") {
+            // docker image rm
+        }
+        */
     }
 }
