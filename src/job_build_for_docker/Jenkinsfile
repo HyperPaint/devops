@@ -70,7 +70,7 @@ class MyGlobal {
     /* Константы */
     static int cacheLifetime = 86400
     static String buildDirectory = "build-directory"
-    static String artifactNameRegex = "[\\?\\&]artifact_name=([A-Za-z0-9\\-_\\.])"
+    static String artifactNameRegex = "[\\?\\&]artifact_name=([A-Za-z0-9\\-_\\.]+)"
     static String releasesPageRegex = "[\\?\\&]is_releases_page=1"
     static String distributiveRegex = "[\\?\\&]is_distributive=1"
 }
