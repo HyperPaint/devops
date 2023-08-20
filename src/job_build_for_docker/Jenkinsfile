@@ -256,7 +256,6 @@ pipeline {
                         Shell.echo(String.format(foundParamString, "use_latest_version"))
                     }
 
-
                     if (MyGlobal.useCacheFile == null) {
                         useCacheFile = true
                         Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_file", MyGlobal.useCacheFile.toString()))
