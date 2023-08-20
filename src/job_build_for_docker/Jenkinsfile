@@ -98,7 +98,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
 
     /* Найти на странице с релизами все ссылки href с тегом <a> */
     String releasesHtml = MyGlobal.jenkins.readFile(releasesHtmlFileName)
-    List<String> urlsList = Regex.groupAll(releasesHtml, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
+    List<String> urlsList = Regex.groupAll(releasesHtml, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.:\\/]+)\"[^<>]*>")
 
     /* Преобразование относительных ссылок в абсолютные */
     Shell.echo("Преобразовываю относительные ссылки в абсолютные")
