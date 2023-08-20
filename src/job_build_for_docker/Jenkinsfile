@@ -469,10 +469,11 @@ pipeline {
                     } else {
                         releasesPageRunnable.run()
                     }
+
+                    // Удаление лишнего из дистрибутива sh
                 }
             }
         }
-
         stage("Получаю темы") {
             steps {
                 script {
@@ -491,13 +492,13 @@ pipeline {
                             for (int regexIndex = 0; regexIndex < MyGlobal.themeDistributiveUrlRegexCount; regexIndex++) {
                                 regexArray[regexIndex] = env["theme_distributive_url_regex${regexIndex+1}"]
                             }
-                            releasesPage(artifactFileName, url, regexArray, MyGlobal.themeUrlReverse, MyGlobal.themesDirectory)
+                            releasesPage(artifactFileName, url, regexArray, MyGlobal.themeUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
                         }
 
                         if (isReleasesPage) {
                             releasesPageRunnable.run()
                         } else if (isDistributive) {
-                            distributive(isArtifactFileNameDefined, url, MyGlobal.themesDirectory)
+                            distributive(isArtifactFileNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
                         } else {
                             releasesPageRunnable.run()
                         }
@@ -506,9 +507,41 @@ pipeline {
             }
         }
         stage("Получаю плагины") {
+            steps {
+                script {
+                    for (int plugin = 1;  plugin <= MyGlobal.pluginsCount; plugin++) {
+                        String url = env["plugin_url${plugin}"]
 
+                        Boolean isArtifactFileNameDefined = Regex.find(url, MyGlobal.artifactFileNameRegex)
+                        Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
+                        isReleasesPageEcho(url, isReleasesPage, isArtifactFileNameDefined)
+                        Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
+                        isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactFileNameDefined)
+
+                        Closure releasesPageRunnable = {
+                            String artifactFileName = Regex.group(url, MyGlobal.artifactFileNameRegex)
+                            String[] regexArray = new String[MyGlobal.pluginDistributiveUrlRegexCount]
+                            for (int regexIndex = 0; regexIndex < MyGlobal.pluginDistributiveUrlRegexCount; regexIndex++) {
+                                regexArray[regexIndex] = env["plugin_distributive_url_regex${regexIndex+1}"]
+                            }
+                            releasesPage(artifactFileName, url, regexArray, MyGlobal.pluginUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/")
+                        }
+
+                        if (isReleasesPage) {
+                            releasesPageRunnable.run()
+                        } else if (isDistributive) {
+                            distributive(isArtifactFileNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/")
+                        } else {
+                            releasesPageRunnable.run()
+                        }
+                    }
+                }
+            }
         }
         /*
+        stage("Настройка") {
+            // Настройка sh
+        }
         stage("Docker Build") {
             // docker build
         }
