@@ -68,6 +68,114 @@ Integer pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_coun
 int cacheLifetime = 86400
 String buildDirectory = "build-directory"
 
+/* Функции */
+
+/**
+ * Скачать страницу с релизами. Найти на ней все ссылки.
+ * Преобразовать относительные ссылки в абсолютные.
+ * Отобрать среди них те, что подходят по регулярным выражениям и уникальные.
+ * При необходимости инвертировать список ссылок.
+ * Если ссылок несколько, то запросить ввод, выбрать дистрибутив, скачать его и распаковать.
+ * @param artifactFileName Название файла артефакта
+ * @param url URL на страницу с релизами или дистрибутив
+ * @param regexArray Массив регулярных выражений для отбора ссылок
+ * @param urlReverse Инвертировать список ссылок
+ * @param destination Директория, в которую распаковать дистрибутив
+ */
+void releasesPage(String artifactFileName, String url, String[] regexArray, Boolean urlReverse, String destination) {
+    String releasesHtmlFileName
+    if (artifactFileName == null) releasesHtmlFileName = "releases.html" else releasesHtmlFileName = "releases-${artifactFileName}.html"
+    if (useCacheFile) Util.downloadFile(url, releasesHtmlFileName, cacheLifetime) else Util.downloadFile(url, releasesHtmlFileName, -1)
+
+    /* Найти на странице с релизами все ссылки href с тегом <a> */
+    String releasesHtml = readFile(releasesHtmlFileName)
+    List<String> urlsList = Regex.groupAll(releasesHtml, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
+
+    /* Преобразование относительных ссылок в абсолютные */
+    Shell.echo("Преобразовываю относительные ссылки в абсолютные")
+    List<String> absoluteUrlsList = new ArrayList<>()
+    for (int i = 0; i < urlsList.size(); i++) {
+        String currentUrl = urlsList.get(i)
+        if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$")) {
+            /* Относительная ссылка */
+            absoluteUrlsList.add(url + currentUrl)
+        } else {
+            /* Абсолютная ссылка */
+            absoluteUrlsList.add(currentUrl)
+        }
+    }
+
+    /* Отобрать только те ссылки, которые подходят по регулярному выражению */
+    Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
+    urlsList.clear()
+    for (int i = 0; i < absoluteUrlsList.size(); i++) {
+        String currentUrl = absoluteUrlsList.get(i)
+
+        Boolean success = true
+        for (int regex = 0; regex < regexArray.size(); regex++) {
+            if (!Regex.find(currentUrl, regexArray[regex])) {
+                success = false
+                break
+            }
+        }
+
+        if (success) {
+            // Подходящая ссылка
+            if (!urlsList.contains(currentUrl)) {
+                // Уникальная ссылка
+                urlsList.add(currentUrl)
+            }
+        }
+    }
+
+    /* Инвертирование списка */
+    if (urlReverse) {
+        Shell.echo("Инвертирую список")
+        urlsList = urlsList.reverse()
+    }
+
+    /* Если ссылок несколько, то запросить ввод */
+    String downloadUrl = null
+    if (urlsList.size() == 0) {
+        Shell.error("Найдено ${urlsList.size()} ссылок")
+    } else {
+        Shell.echo("Найдено ${urlsList.size()} ссылок")
+        if (urlsList.size() == 1) {
+            downloadUrl = urlsList.get(0)
+        } else {
+            if (useLatestVersion) {
+                downloadUrl = urlsList.get(0)
+            } else {
+                downloadUrl = input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
+            }
+        }
+    }
+
+    /* Скачать дистрибутив */
+    String fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(?.*){0,1}\$")
+    if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
+    Util.unarchiveFile(fileName, destination, true)
+}
+
+/**
+ * Скачать дистрибутив и распаковать.
+ * @param isArtifactFileNameDefined Название файла артефакта задано
+ * @param url URL на страницу с релизами или дистрибутив
+ * @param destination Директория, в которую распаковать дистрибутив
+ */
+void distributive(Boolean isArtifactFileNameDefined, String url, String destination) {
+    /* Скачать дистрибутив */
+    String downloadUrl = url
+    String fileName
+    if (isArtifactFileNameDefined) {
+        fileName = Regex.group(downloadUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
+    } else {
+        fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(?.*){0,1}\$")
+    }
+    if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
+    Util.unarchiveFile(fileName, destination, true)
+}
+
 pipeline {
     agent any
     parameters {
@@ -288,124 +396,37 @@ pipeline {
             steps {
                 script {
                     /* Распарсить параметры из ссылки */
+                    Boolean isArtifactFileNameDefined = Regex.find(appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
                     Boolean isReleasesPage = Regex.find(appUrl, "[\\?\\&]is_releases_page=1")
                     if (isReleasesPage) {
-                        Shell.echo("${appUrl} - Страница HTML с ссылками")
+                        if (isArtifactFileNameDefined) {
+                            Shell.echo("${appUrl} - Страница HTML с ссылками с именем артефакта")
+                        } else {
+                            Shell.echo("${appUrl} - Страница HTML с ссылками")
+                        }
                     }
                     Boolean isDistributive = Regex.find(appUrl, "[\\?\\&]is_distributive=1")
-                    Boolean isFileNameDefined = Regex.find(appUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
                     if (isDistributive && !isReleasesPage) {
-                        if (isFileNameDefined) {
-                            Shell.echo("${appUrl} - Архив дистрибутива с именем")
+                        if (isArtifactFileNameDefined) {
+                            Shell.echo("${appUrl} - Архив дистрибутива с именем артефакта")
                         } else {
                             Shell.echo("${appUrl} - Архив дистрибутива")
                         }
                     }
 
                     Runnable releasesPageRunnable = {
-                        if (useCacheFile) Util.downloadFile(appUrl, "releases.html", cacheLifetime) else Util.downloadFile(appUrl, "releases.html", -1)
-
-                        /* Найти на странице с релизами все ссылки href с тегом <a> */
-                        String releasesHTML = readFile("releases.html")
-                        List<String> urlsList = Regex.groupAll(releasesHTML, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
-
-                        /* Преобразование относительных ссылок в абсолютные */
-                        Shell.echo("Преобразовываю относительные ссылки в абсолютные")
-                        List<String> absoluteUrlsList = new ArrayList<>()
-                        int size = urlsList.size()
-                        for (int i = 0; i < size; i++) {
-                            String currentUrl = urlsList.get(i)
-                            if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+\$")) {
-                                /* Относительная ссылка */
-                                absoluteUrlsList.add(appUrl + currentUrl)
-                            } else {
-                                /* Абсолютная ссылка */
-                                absoluteUrlsList.add(currentUrl)
-                            }
-                        }
-
-                        /* Отобрать только те ссылки, которые подходят по регулярному выражению */
-                        /* Но сначала создать массив регулярных выражений */
-                        Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
+                        //String artifactFileName = Regex.group(appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
                         String[] regexArray = new String[appDistributiveUrlRegexCount]
                         for (int i = 0; i < appDistributiveUrlRegexCount; i++) {
                             regexArray[i] = env["app_distributive_url_regex${i+1}"]
                         }
-                        /* Отобрать только те ссылки, которые подходят по регулярному выражению */
-                        urlsList.clear()
-                        size = absoluteUrlsList.size()
-                        for (int i = 0; i < size; i++) {
-                            String currentUrl = absoluteUrlsList.get(i)
-
-                            Boolean success = true
-                            for (int regex = 0; regex < appDistributiveUrlRegexCount; regex++) {
-                                if (!Regex.find(currentUrl, regexArray[regex])) {
-                                    success = false
-                                    break
-                                }
-                            }
-
-                            if (success) {
-                                // Подходящая ссылка
-                                if (!urlsList.contains(currentUrl)) {
-                                    // Уникальная ссылка
-                                    urlsList.add(currentUrl)
-                                }
-                            }
-                        }
-
-                        /* Инвертирование списка */
-                        if (appUrlReverse) {
-                            Shell.echo("Инвертирую список")
-                            urlsList = urlsList.reverse()
-                        }
-
-                        /* Если ссылок несколько, то запросить ввод */
-                        String downloadUrl = null
-                        size = urlsList.size()
-                        if (size == 0) {
-                            Shell.error("Найдено ${size} ссылок")
-                        } else {
-                            Shell.echo("Найдено ${size} ссылок")
-                            if (size == 1) {
-                                downloadUrl = urlsList.get(0)
-                            } else {
-                                if (useLatestVersion) {
-                                    downloadUrl = urlsList.get(0)
-                                } else {
-                                    downloadUrl = input(message: "Выбор версии ${appUrl}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
-                                }
-                            }
-                        }
-
-                        /* Скачать дистрибутив */
-                        String fileName
-                        if (isFileNameDefined) {
-                            fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
-                        } else {
-                            fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
-                        }
-                        if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
-                        Util.unarchiveFile(fileName, buildDirectory, true)
-                    }
-
-                    Runnable distributiveRunnable = {
-                        /* Скачать дистрибутив */
-                        String downloadUrl = appUrl
-                        String fileName
-                        if (isFileNameDefined) {
-                            fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
-                        } else {
-                            fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
-                        }
-                        if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
-                        Util.unarchiveFile(fileName, buildDirectory, true)
+                        releasesPage(null, appUrl, regexArray, appUrlReverse, buildDirectory)
                     }
 
                     if (isReleasesPage) {
                         releasesPageRunnable.run()
                     } else if (isDistributive) {
-                        distributiveRunnable.run()
+                        distributive(isArtifactFileNameDefined, appUrl, buildDirectory)
                     } else {
                         releasesPageRunnable.run()
                     }
