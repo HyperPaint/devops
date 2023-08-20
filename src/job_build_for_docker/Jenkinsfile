@@ -70,7 +70,7 @@ class MyGlobal {
     /* Константы */
     static int cacheLifetime = 86400
     static String buildDirectory = "build-directory"
-    static String artifactFileNameRegex = "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])"
+    static String artifactNameRegex = "[\\?\\&]artifact_name=([A-Za-z0-9\\-_\\.])"
     static String releasesPageRegex = "[\\?\\&]is_releases_page=1"
     static String distributiveRegex = "[\\?\\&]is_distributive=1"
 }
@@ -447,13 +447,13 @@ pipeline {
             steps {
                 script {
                     /* Распарсить параметры из ссылки */
-                    Boolean isArtifactFileNameDefined = Regex.find(MyGlobal.appUrl, MyGlobal.artifactFileNameRegex)
+                    Boolean isArtifactNameDefined = Regex.find(MyGlobal.appUrl, MyGlobal.artifactNameRegex)
                     Boolean isReleasesPage = Regex.find(MyGlobal.appUrl, MyGlobal.releasesPageRegex)
-                    isReleasesPageEcho(MyGlobal.appUrl, isReleasesPage, isArtifactFileNameDefined)
+                    isReleasesPageEcho(MyGlobal.appUrl, isReleasesPage, isArtifactNameDefined)
                     Boolean isDistributive = Regex.find(MyGlobal.appUrl, MyGlobal.distributiveRegex)
-                    isDistributiveEcho(MyGlobal.appUrl, isDistributive, isReleasesPage, isArtifactFileNameDefined)
+                    isDistributiveEcho(MyGlobal.appUrl, isDistributive, isReleasesPage, isArtifactNameDefined)
 
-                    Closure releasesPageRunnable = {
+                    Runnable releasesPageRunnable = {
                         String[] regexArray = new String[MyGlobal.appDistributiveUrlRegexCount]
                         for (int regexIndex = 0; regexIndex < MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
                             regexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
@@ -464,7 +464,7 @@ pipeline {
                     if (isReleasesPage) {
                         releasesPageRunnable.run()
                     } else if (isDistributive) {
-                        distributive(isArtifactFileNameDefined, MyGlobal.appUrl, MyGlobal.buildDirectory)
+                        distributive(isArtifactNameDefined, MyGlobal.appUrl, MyGlobal.buildDirectory)
                     } else {
                         releasesPageRunnable.run()
                     }
@@ -479,14 +479,14 @@ pipeline {
                     for (int theme = 1;  theme <= MyGlobal.themesCount; theme++) {
                         String url = env["theme_url${theme}"]
 
-                        Boolean isArtifactFileNameDefined = Regex.find(url, MyGlobal.artifactFileNameRegex)
+                        Boolean isArtifactNameDefined = Regex.find(url, MyGlobal.artifactNameRegex)
                         Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
-                        isReleasesPageEcho(url, isReleasesPage, isArtifactFileNameDefined)
+                        isReleasesPageEcho(url, isReleasesPage, isArtifactNameDefined)
                         Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
-                        isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactFileNameDefined)
+                        isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactNameDefined)
 
-                        Closure releasesPageRunnable = {
-                            String artifactFileName = Regex.group(url, MyGlobal.artifactFileNameRegex)
+                        Runnable releasesPageRunnable = {
+                            String artifactFileName = Regex.group(url, MyGlobal.artifactNameRegex)
                             String[] regexArray = new String[MyGlobal.themeDistributiveUrlRegexCount]
                             for (int regexIndex = 0; regexIndex < MyGlobal.themeDistributiveUrlRegexCount; regexIndex++) {
                                 regexArray[regexIndex] = env["theme_distributive_url_regex${regexIndex+1}"]
@@ -497,7 +497,7 @@ pipeline {
                         if (isReleasesPage) {
                             releasesPageRunnable.run()
                         } else if (isDistributive) {
-                            distributive(isArtifactFileNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
+                            distributive(isArtifactNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
                         } else {
                             releasesPageRunnable.run()
                         }
@@ -511,14 +511,14 @@ pipeline {
                     for (int plugin = 1;  plugin <= MyGlobal.pluginsCount; plugin++) {
                         String url = env["plugin_url${plugin}"]
 
-                        Boolean isArtifactFileNameDefined = Regex.find(url, MyGlobal.artifactFileNameRegex)
+                        Boolean isArtifactNameDefined = Regex.find(url, MyGlobal.artifactNameRegex)
                         Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
-                        isReleasesPageEcho(url, isReleasesPage, isArtifactFileNameDefined)
+                        isReleasesPageEcho(url, isReleasesPage, isArtifactNameDefined)
                         Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
-                        isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactFileNameDefined)
+                        isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactNameDefined)
 
-                        Closure releasesPageRunnable = {
-                            String artifactFileName = Regex.group(url, MyGlobal.artifactFileNameRegex)
+                        Runnable releasesPageRunnable = {
+                            String artifactFileName = Regex.group(url, MyGlobal.artifactNameRegex)
                             String[] regexArray = new String[MyGlobal.pluginDistributiveUrlRegexCount]
                             for (int regexIndex = 0; regexIndex < MyGlobal.pluginDistributiveUrlRegexCount; regexIndex++) {
                                 regexArray[regexIndex] = env["plugin_distributive_url_regex${regexIndex+1}"]
@@ -529,7 +529,7 @@ pipeline {
                         if (isReleasesPage) {
                             releasesPageRunnable.run()
                         } else if (isDistributive) {
-                            distributive(isArtifactFileNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/")
+                            distributive(isArtifactNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/")
                         } else {
                             releasesPageRunnable.run()
                         }
