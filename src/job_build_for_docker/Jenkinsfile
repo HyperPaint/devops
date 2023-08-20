@@ -331,6 +331,8 @@ pipeline {
                         for (int i = 0; i < appDistributiveUrlRegexCount; i++) {
                             regexArray[i] = env["app_distributive_url_regex${i+1}"]
                         }
+                        Shell.echo(regexArray.join("\n"))
+                        /* Отобрать только те ссылки, которые подходят по регулярному выражению */
                         urlsList.clear()
                         size = absoluteUrlsList.size()
                         for (int i = 0; i < size; i++) {
