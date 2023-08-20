@@ -72,6 +72,8 @@ class MyGlobal {
     static String buildDirectory = "build-directory"
 }
 
+MyGlobal.jenkins = this
+
 /* Функции */
 
 /**
@@ -150,7 +152,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
             if (MyGlobal.useLatestVersion) {
                 downloadUrl = urlsList.get(0)
             } else {
-                downloadUrl = MyGlobal.jenkins.input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
+                downloadUrl = MyGlobal.jenkins.input(message: "Выбор версии ${url}", parameters: [MyGlobal.jenkins.choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
             }
         }
     }
@@ -198,8 +200,6 @@ pipeline {
         stage("Параметры и переменные окружения") {
             steps {
                 script {
-                    MyGlobal.jenkins = this
-
                     /* Задание стандартных параметров */
                     String notFoundParamStringSetDefault = "Параметр '%s' не найден, использую стандартное значение '%s'"
                     String foundParamString = "Параметр '%s' найден"
