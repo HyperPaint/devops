@@ -341,9 +341,7 @@ pipeline {
                     } else {
                         Shell.echo(String.format(foundEnvString, "app_distributive_url_regex_count"))
                         if (MyGlobal.appDistributiveUrlRegexCount != 0) {
-                            Shell.echo("app_distributive_url_regex_count = ${env["app_distributive_url_regex_count"]}")
                             for (int regexIndex = 1; regexIndex <= MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
-                                Shell.echo("app_distributive_url_regex${regexIndex} = ${env["app_distributive_url_regex${regexIndex}"]}")
                                 if (env["app_distributive_url_regex${regexIndex}"] == null) {
                                     Shell.error(String.format(notFoundEnvStringError, "app_distributive_url_regex${regexIndex}"))
                                 } else {
@@ -431,7 +429,7 @@ pipeline {
                             } else {
                                 Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex_count"))
                                 if (MyGlobal.pluginDistributiveUrlRegexCount != 0) {
-                                    Shell.echo("plugin_distributive_url_regex_count = ${env["plugin_distributive_url_regex_count"]}")
+                                    Shell.echo("plugin_distributive_url_regex_count = ${MyGlobal.pluginDistributiveUrlRegexCount}")
                                     for (int regexIndex = 1; regexIndex <= MyGlobal.pluginDistributiveUrlRegexCount; regexIndex++) {
                                         Shell.echo("plugin_distributive_url_regex${regexIndex} = ${env["plugin_distributive_url_regex${regexIndex}"]}")
                                         if (env["plugin_distributive_url_regex${regexIndex}"] == null) {
