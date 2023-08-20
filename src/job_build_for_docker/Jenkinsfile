@@ -10,7 +10,7 @@ Shell.setJenkins(this)
 /* Получение параметров, проверка и назначение значений по-умолчанию */
 /** Выбирать последние версии автоматически */
 Boolean useLatestVersion = params.use_latest_version
-Boolean useLatestVersionDefault = true
+Boolean useLatestVersionDefault = false
 String useLatestVersionDescription = "Выбирать последние версии автоматически"
 /** Использовать кэш загрузок */
 Boolean useCacheFile = params.use_cache_file
@@ -30,7 +30,7 @@ Boolean exportImageDefault = true
 String exportImageDescription = "Экспортировать образ"
 /** Удалить образ */
 Boolean deleteImage = params.delete_image
-Boolean deleteImageDefault = true
+Boolean deleteImageDefault = false
 String deleteImageDescription = "Удалить образ"
 
 /* Получение обязательных переменных окружения */
@@ -175,80 +175,74 @@ pipeline {
                         }
                     }
 
-                    Runnable releasesPageRunnable = new Runnable() {
-                        @Override
-                        void run() {
-                            Util.downloadFile(url, "releases.html", cacheLifetime)
-                            /* Найти на странице с релизами все ссылки href с тегом <a> */
-                            String releasesHTML = readFile("releases.html")
-                            List<String> urls = Regex.groupAll(releasesHTML, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
+                    Runnable releasesPageRunnable = () -> {
+                        Util.downloadFile(url, "releases.html", cacheLifetime)
+                        /* Найти на странице с релизами все ссылки href с тегом <a> */
+                        String releasesHTML = readFile("releases.html")
+                        List<String> urls = Regex.groupAll(releasesHTML, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
 
-                            /* Преобразование относительных ссылок в абсолютные */
-                            Shell.echo("Преобразовываю относительные ссылки в абсолютные")
-                            List<String> absoluteUrls = new ArrayList<>()
-                            int size = urls.size()
-                            for (int i = 0; i < size; i++) {
-                                String currentUrl = urls.get(i)
-                                if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+\$")) {
-                                    /* Относительная ссылка */
-                                    absoluteUrls.add(url + currentUrl)
-                                } else {
-                                    /* Абсолютная ссылка */
-                                    absoluteUrls.add(currentUrl)
-                                }
-                            }
-
-                            /* Отобрать только те ссылки, которые подходят по регулярному выражению */
-                            Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
-                            urls = new ArrayList<>()
-                            size = absoluteUrls.size()
-                            for (int i = 0; i < size; i++) {
-                                String currentUrl = absoluteUrls.get(i)
-                                if (Regex.find(currentUrl, distributiveUrlRegex)) {
-                                    urls.add(currentUrl)
-                                }
-                            }
-
-                            /* Если ссылок несколько запросить ввод */
-                            String downloadUrl = null
-                            size = urls.size()
-                            if (size == 0) {
-                                Shell.error("Найдено ${size} ссылок")
+                        /* Преобразование относительных ссылок в абсолютные */
+                        Shell.echo("Преобразовываю относительные ссылки в абсолютные")
+                        List<String> absoluteUrls = new ArrayList<>()
+                        int size = urls.size()
+                        for (int i = 0; i < size; i++) {
+                            String currentUrl = urls.get(i)
+                            if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+\$")) {
+                                /* Относительная ссылка */
+                                absoluteUrls.add(url + currentUrl)
                             } else {
-                                Shell.echo("Найдено ${size} ссылок")
-                                if (size == 1) {
-                                    downloadUrl = urls.get(0)
-                                } else {
-                                    downloadUrl = input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urls.join('\n'))]).toString()
-                                }
+                                /* Абсолютная ссылка */
+                                absoluteUrls.add(currentUrl)
                             }
-
-                            /* Скачать дистрибутив */
-                            String fileName = null
-                            if (isFileNameDefined) {
-                                fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
-                            } else {
-                                fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
-                            }
-                            Util.downloadFile(downloadUrl, fileName)
-                            Util.unarchiveFile(fileName, buildDirectory, true)
                         }
+
+                        /* Отобрать только те ссылки, которые подходят по регулярному выражению */
+                        Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
+                        urls = new ArrayList<>()
+                        size = absoluteUrls.size()
+                        for (int i = 0; i < size; i++) {
+                            String currentUrl = absoluteUrls.get(i)
+                            if (Regex.find(currentUrl, distributiveUrlRegex)) {
+                                urls.add(currentUrl)
+                            }
+                        }
+
+                        /* Если ссылок несколько запросить ввод */
+                        String downloadUrl = null
+                        size = urls.size()
+                        if (size == 0) {
+                            Shell.error("Найдено ${size} ссылок")
+                        } else {
+                            Shell.echo("Найдено ${size} ссылок")
+                            if (size == 1) {
+                                downloadUrl = urls.get(0)
+                            } else {
+                                downloadUrl = input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urls.join('\n'))]).toString()
+                            }
+                        }
+
+                        /* Скачать дистрибутив */
+                        String fileName
+                        if (isFileNameDefined) {
+                            fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
+                        } else {
+                            fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
+                        }
+                        Util.downloadFile(downloadUrl, fileName)
+                        Util.unarchiveFile(fileName, buildDirectory, true)
                     }
 
-                    Runnable distributiveRunnable = new Runnable() {
-                        @Override
-                        void run() {
-                            /* Скачать дистрибутив */
-                            String downloadUrl = url
-                            String fileName = null
-                            if (isFileNameDefined) {
-                                fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
-                            } else {
-                                fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
-                            }
-                            Util.downloadFile(downloadUrl, fileName)
-                            Util.unarchiveFile(fileName, buildDirectory, true)
+                    Runnable distributiveRunnable = () -> {
+                        /* Скачать дистрибутив */
+                        String downloadUrl = url
+                        String fileName
+                        if (isFileNameDefined) {
+                            fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
+                        } else {
+                            fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
                         }
+                        Util.downloadFile(downloadUrl, fileName)
+                        Util.unarchiveFile(fileName, buildDirectory, true)
                     }
 
                     if (isReleasesPage) {
