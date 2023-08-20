@@ -1,6 +1,6 @@
 package job_build_for_docker
 
-@Library("devops")
+@Library("devops@job_build_for_docker")
 import hyperpaint.util.Regex
 import hyperpaint.util.Shell
 import hyperpaint.util.Util
