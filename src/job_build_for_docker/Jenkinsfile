@@ -10,60 +10,60 @@ Shell.setJenkins(this)
 class MyGlobal {
     /* Получение параметров, проверка и назначение значений по-умолчанию */
     /** Выбирать последние версии автоматически */
-    static Boolean useLatestVersion = params.use_latest_version
+    static Boolean useLatestVersion = null
     static Boolean useLatestVersionDefault = false
     static String useLatestVersionDescription = "Выбирать последние версии автоматически"
     /** Использовать кэш загрузок */
-    static Boolean useCacheFile = params.use_cache_file
+    static Boolean useCacheFile = null
     static Boolean useCacheFileDefault = true
     static String useCacheFileDescription = "Использовать кэш загрузок"
     /** Использовать кэш сборок */
-    static Boolean useCacheDocker = params.use_cache_docker
+    static Boolean useCacheDocker = null
     static Boolean useCacheDockerDefault = true
     static String useCacheDockerDescription = "Использовать кэш сборок"
     /** Деплой и проверка состояния контейнера */
-    static Boolean deployImage = params.deploy_image
+    static Boolean deployImage = null
     static Boolean deployImageDefault = true
     static String deployImageDescription = "Деплой и проверка состояния контейнера"
     /** Экспортировать образ */
-    static Boolean exportImage = params.export_image
+    static Boolean exportImage = null
     static Boolean exportImageDefault = false
     static String exportImageDescription = "Экспортировать образ"
     /** Удалить образ */
-    static Boolean deleteImage = params.delete_image
+    static Boolean deleteImage = null
     static Boolean deleteImageDefault = false
     static String deleteImageDescription = "Удалить образ"
 
     /* Получение переменных окружения */
-    static String hostCredentials = env.host_credentials
-    static String sshCredentials = env.ssh_credentials
-    static String dockerComposeProjectDirectory = env.docker_compose_project_directory
+    static String hostCredentials = null
+    static String sshCredentials = null
+    static String dockerComposeProjectDirectory = null
 
     /** Docker image name */
-    static String imageName = env.image_name
+    static String imageName = null
 
     /** URL на страницу с релизами или дистрибутив */
-    static String appUrl = env.app_url
+    static String appUrl = null
     /** Инвертировать список ссылок */
-    static Boolean appUrlReverse = env.app_url_reverse.toBoolean()
+    static Boolean appUrlReverse = null
     /** Количество регулярных выражений для отбора ссылок */
-    static Integer appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
+    static Integer appDistributiveUrlRegexCount = null
 
-    static String themesDirectory = env.themes_directory
+    static String themesDirectory = null
     /** Количество плагинов */
-    static Integer themesCount = env.themes_count.toInteger()
+    static Integer themesCount = null
     /** Инвертировать список ссылок */
-    static Boolean themeUrlReverse = env.theme_url_reverse.toBoolean()
+    static Boolean themeUrlReverse = null
     /** Количество регулярных выражений для отбора ссылок */
-    static Integer themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count
+    static Integer themeDistributiveUrlRegexCount = null
 
-    static String pluginsDirectory = env.plugins_directory
+    static String pluginsDirectory = null
     /** Количество плагинов */
-    static Integer pluginsCount = env.plugins_count.toInteger()
+    static Integer pluginsCount = null
     /** Инвертировать список ссылок */
-    static Boolean pluginUrlReverse = env.plugin_url_reverse.toBoolean()
+    static Boolean pluginUrlReverse = null
     /** Количество регулярных выражений для отбора ссылок */
-    static Integer pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count
+    static Integer pluginDistributiveUrlRegexCount = null
 
     /* Константы */
     static int cacheLifetime = 86400
@@ -200,12 +200,35 @@ pipeline {
                     String notFoundParamStringSetDefault = "Параметр '%s' не найден, использую стандартное значение '%s'"
                     String foundParamString = "Параметр '%s' найден"
 
+                    MyGlobal.useLatestVersion = params.use_latest_version
+                    MyGlobal.useCacheFile = params.use_cache_file
+                    MyGlobal.useCacheDocker = params.use_cache_docker
+                    MyGlobal.deployImage = params.deploy_image
+                    MyGlobal.exportImage = params.export_image
+                    MyGlobal.deleteImage = params.delete_image
+                    MyGlobal.hostCredentials = env.host_credentials
+                    MyGlobal.sshCredentials = env.ssh_credentials
+                    MyGlobal.dockerComposeProjectDirectory = env.docker_compose_project_directory
+                    MyGlobal.imageName = env.image_name
+                    MyGlobal.appUrl = env.app_url
+                    MyGlobal.appUrlReverse = env.app_url_reverse.toBoolean()
+                    MyGlobal.appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
+                    MyGlobal.themesDirectory = env.themes_directory
+                    MyGlobal.themesCount = env.themes_count.toInteger()
+                    MyGlobal.themeUrlReverse = env.theme_url_reverse.toBoolean()
+                    MyGlobal.themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count
+                    MyGlobal.pluginsDirectory = env.plugins_directory
+                    MyGlobal.pluginsCount = env.plugins_count.toInteger()
+                    MyGlobal.pluginUrlReverse = env.plugin_url_reverse.toBoolean()
+                    MyGlobal.pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count
+
                     if (MyGlobal.useLatestVersion == null) {
                         useLatestVersion = true
                         Shell.echo(String.format(notFoundParamStringSetDefault, "use_latest_version", MyGlobal.useLatestVersion.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "use_latest_version"))
                     }
+
 
                     if (MyGlobal.useCacheFile == null) {
                         useCacheFile = true
