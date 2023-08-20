@@ -45,6 +45,9 @@ final class Util {
         } else if (Regex.find(file, "^.*\\.tar\\.xz\$")) {
             Shell.echo("Распаковываю файл ${file} как tar.xz архив")
             Shell.sh("tar x -Jf '${file}' -C '${destination}'")
+        } else if (Regex.find(file, "^.*\\.tar\\.bz2\$")) {
+            Shell.echo("Распаковываю файл ${file} как tar.bz2 архив")
+            Shell.sh("tar x -jf '${file}' -C '${destination}'")
         } else if (Regex.find(file, "^.*\\.tar\$")) {
             Shell.echo("Распаковываю файл ${file} как tar архив")
             Shell.sh("tar x -f '${file}' -C '${destination}'")
