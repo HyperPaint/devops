@@ -369,7 +369,11 @@ pipeline {
                             if (size == 1) {
                                 downloadUrl = urlsList.get(0)
                             } else {
-                                downloadUrl = input(message: "Выбор версии ${appUrl}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
+                                if (useLatestVersion) {
+                                    downloadUrl = urlsList.get(0)
+                                } else {
+                                    downloadUrl = input(message: "Выбор версии ${appUrl}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
+                                }
                             }
                         }
 
