@@ -158,7 +158,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     }
 
     /* Скачать дистрибутив */
-    String fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(?.*){0,1}\$")
+    String fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(\\?.*){0,1}\$")
     if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
     Util.unarchiveFile(fileName, destination, true)
 }
@@ -176,7 +176,7 @@ static void distributive(Boolean isArtifactFileNameDefined, String url, String d
     if (isArtifactFileNameDefined) {
         fileName = Regex.group(downloadUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
     } else {
-        fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(?.*){0,1}\$")
+        fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(\\?.*){0,1}\$")
     }
     if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
     Util.unarchiveFile(fileName, destination, true)
