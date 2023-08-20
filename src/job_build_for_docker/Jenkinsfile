@@ -328,8 +328,8 @@ pipeline {
                         /* Но сначала создать массив регулярных выражений */
                         Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
                         String[] regexArray = new String[appDistributiveUrlRegexCount]
-                        for (int i = 1; i <= appDistributiveUrlRegexCount; i++) {
-                            regexArray[i] = env["app_distributive_url_regex${i}"]
+                        for (int i = 0; i < appDistributiveUrlRegexCount; i++) {
+                            regexArray[i] = env["app_distributive_url_regex${i+1}"]
                         }
                         urlsList.clear()
                         size = absoluteUrlsList.size()
