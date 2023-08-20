@@ -33,18 +33,36 @@ Boolean deleteImage = params.delete_image
 Boolean deleteImageDefault = false
 String deleteImageDescription = "Удалить образ"
 
-/* Получение обязательных переменных окружения */
+/* Получение переменных окружения */
 String hostCredentials = env.host_credentials
 String sshCredentials = env.ssh_credentials
 String dockerComposeProjectDirectory = env.docker_compose_project_directory
 
+/** Docker image name */
 String imageName = env.image_name
-String url = env.url
-String distributiveUrlRegex = env.distributive_url_regex
-Integer themes = env.themes.toInteger()
+
+/** URL на страницу с релизами или дистрибутив */
+String appUrl = env.app_url
+/** Инвертировать список ссылок */
+Boolean appUrlReverse = env.app_url_reverse.toBoolean()
+/** Количество регулярных выражений для отбора ссылок */
+Integer appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
+
 String themesDirectory = env.themes_directory
-Integer plugins = env.plugins.toInteger()
+/** Количество плагинов */
+Integer themesCount = env.themes_count.toInteger()
+/** Инвертировать список ссылок */
+Boolean themeUrlReverse = env.theme_url_reverse.toBoolean()
+/** Количество регулярных выражений для отбора ссылок */
+Integer themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count
+
 String pluginsDirectory = env.plugins_directory
+/** Количество плагинов */
+Integer pluginsCount = env.plugins_count.toInteger()
+/** Инвертировать список ссылок */
+Boolean pluginUrlReverse = env.plugin_url_reverse.toBoolean()
+/** Количество регулярных выражений для отбора ссылок */
+Integer pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count
 
 /* Константы */
 int cacheLifetime = 86400
@@ -96,62 +114,103 @@ pipeline {
                         Shell.echo(String.format(noParamString, "delete_image", deleteImage.toString()))
                     }
 
+                    /* Проверка переменных окружения */
+                    /* Проверка необязательных переменных окружения */
+                    String noEnvStringContinue = "Переменная окружения '%s' не задана, использую стандартное значение '%s'"
                     /* Проверка обязательных переменных окружения */
-                    String noEnvString1 = "Переменная окружения '%s' не задана, выполнение невозможно"
+                    String noEnvStringError = "Переменная окружения '%s' не задана, выполнение невозможно"
 
                     if (hostCredentials == null) {
-                        Shell.error(String.format(noEnvString1, "host_credentials"))
+                        Shell.error(String.format(noEnvStringError, "host_credentials"))
                     }
+
                     if (sshCredentials == null) {
-                        Shell.error(String.format(noEnvString1, "ssh_credentials"))
+                        Shell.error(String.format(noEnvStringError, "ssh_credentials"))
                     }
+
                     if (dockerComposeProjectDirectory == null) {
-                        Shell.error(String.format(noEnvString1, "docker_compose_project_directory"))
+                        Shell.error(String.format(noEnvStringError, "docker_compose_project_directory"))
                     }
 
                     if (imageName == null) {
-                        Shell.error(String.format(noEnvString1, "image_name"))
-                    }
-                    if (url == null) {
-                        Shell.error(String.format(noEnvString1, "url"))
+                        Shell.error(String.format(noEnvStringError, "image_name"))
                     }
 
-                    /* Проверка необязательных переменных окружения */
-                    String noEnvString2 = "Переменная окружения '%s' не задана, использую стандартное значение '%s'"
-
-                    if (distributiveUrlRegex == null) {
-                        distributiveUrlRegex = "zip|rar|tar\\.gz|tar\\.xz|tar"
-                        Shell.echo(String.format(noEnvString2, "distributive_url_regex"))
+                    if (appUrl == null) {
+                        Shell.error(String.format(noEnvStringError, "app_url"))
                     }
 
-                    if (themes == null) {
-                        themes = 0
-                        Shell.echo(String.format(noEnvString2, "themes", themes.toString()))
-                    } else if (themes != 0) {
+                    if (appUrlReverse == null) {
+                        appUrlReverse = false
+                        Shell.echo(String.format(noEnvStringContinue, "app_url_reverse", appUrlReverse))
+                    }
+
+                    if (appDistributiveUrlRegexCount == null) {
+                        appDistributiveUrlRegexCount = 0
+                        Shell.echo(String.format(noEnvStringContinue, "app_distributive_url_regex_count", appDistributiveUrlRegexCount))
+                    } else if (appDistributiveUrlRegexCount != 0) {
+                        for (int i = 1; i <= appDistributiveUrlRegexCount; i++) {
+                            if (env["app_distributive_url_regex${i}"] == null) {
+                                Shell.error(String.format(noEnvStringError, "app_distributive_url_regex${i}"))
+                            }
+                        }
+                    }
+
+                    if (themesCount == null) {
+                        themesCount = 0
+                        Shell.echo(String.format(noEnvStringContinue, "themes_count", themesCount.toString()))
+                    } else if (themesCount != 0) {
                         if (themesDirectory == null) {
-                            Shell.error(String.format(noEnvString1, "themesDirectory"))
+                            Shell.error(String.format(noEnvStringError, "themes_directory"))
                         }
 
-                        for (int i = 1; i <= themes; i++) {
+                        for (int i = 1; i <= themesCount; i++) {
                             assert(env["theme_url${i}"] != null)
                         }
-                    }
 
-                    if (distributiveUrlRegex == null) {
-                        distributiveUrlRegex = "\\.zip|\\.tar"
-                        Shell.echo(String.format(noEnvString2, "distributive_url_regex"))
-                    }
-
-                    if (plugins == null) {
-                        plugins = 0
-                        Shell.echo(String.format(noEnvString2, "plugins", plugins.toString()))
-                    } else if (plugins != 0) {
-                        if (pluginsDirectory == null) {
-                            Shell.error(String.format(noEnvString1, "pluginsDirectory"))
+                        if (themeUrlReverse == null) {
+                            themeUrlReverse = false
+                            Shell.echo(String.format(noEnvStringContinue, "theme_url_reverse", themeUrlReverse))
                         }
 
-                        for (int i = 1; i <= plugins; i++) {
+                        if (themeDistributiveUrlRegexCount == null) {
+                            themeDistributiveUrlRegexCount = 0
+                            Shell.echo(String.format(noEnvStringContinue, "theme_distributive_url_regex_count", themeDistributiveUrlRegexCount))
+                        } else if (themeDistributiveUrlRegexCount != 0) {
+                            for (int i = 1; i <= themeDistributiveUrlRegexCount; i++) {
+                                if (env["theme_distributive_url_regex${i}"] == null) {
+                                    Shell.error(String.format(noEnvStringError, "theme_distributive_url_regex${i}"))
+                                }
+                            }
+                        }
+                    }
+
+                    if (pluginsCount == null) {
+                        pluginsCount = 0
+                        Shell.echo(String.format(noEnvStringContinue, "plugins_count", pluginsCount.toString()))
+                    } else if (pluginsCount != 0) {
+                        if (pluginsDirectory == null) {
+                            Shell.error(String.format(noEnvStringError, "plugins_directory"))
+                        }
+
+                        for (int i = 1; i <= pluginsCount; i++) {
                             assert(env["plugin_url${i}"] != null)
+                        }
+
+                        if (pluginUrlReverse == null) {
+                            pluginUrlReverse = false
+                            Shell.echo(String.format(noEnvStringContinue, "plugin_url_reverse", pluginUrlReverse))
+                        }
+
+                        if (pluginDistributiveUrlRegexCount == null) {
+                            pluginDistributiveUrlRegexCount = 0
+                            Shell.echo(String.format(noEnvStringContinue, "plugin_distributive_url_regex_count", pluginDistributiveUrlRegexCount))
+                        } else if (pluginDistributiveUrlRegexCount != 0) {
+                            for (int i = 1; i <= pluginDistributiveUrlRegexCount; i++) {
+                                if (env["plugin_distributive_url_regex${i}"] == null) {
+                                    Shell.error(String.format(noEnvStringError, "plugin_distributive_url_regex${i}"))
+                                }
+                            }
                         }
                     }
                 }
@@ -161,63 +220,88 @@ pipeline {
             steps {
                 script {
                     /* Распарсить параметры из ссылки */
-                    Boolean isReleasesPage = Regex.find(url, "[\\?\\&]is_releases_page=1")
+                    Boolean isReleasesPage = Regex.find(appUrl, "[\\?\\&]is_releases_page=1")
                     if (isReleasesPage) {
-                        Shell.echo("${url} - Страница HTML с ссылками")
+                        Shell.echo("${appUrl} - Страница HTML с ссылками")
                     }
-                    Boolean isDistributive = Regex.find(url, "[\\?\\&]is_distributive=1")
-                    Boolean isFileNameDefined = Regex.find(url, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
+                    Boolean isDistributive = Regex.find(appUrl, "[\\?\\&]is_distributive=1")
+                    Boolean isFileNameDefined = Regex.find(appUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
                     if (isDistributive && !isReleasesPage) {
                         if (isFileNameDefined) {
-                            Shell.echo("${url} - Архив дистрибутива с именем")
+                            Shell.echo("${appUrl} - Архив дистрибутива с именем")
                         } else {
-                            Shell.echo("${url} - Архив дистрибутива")
+                            Shell.echo("${appUrl} - Архив дистрибутива")
                         }
                     }
 
                     Runnable releasesPageRunnable = {
-                        Util.downloadFile(url, "releases.html", cacheLifetime)
+                        if (useCacheFile) Util.downloadFile(appUrl, "releases.html", cacheLifetime) else Util.downloadFile(appUrl, "releases.html", -1)
+
                         /* Найти на странице с релизами все ссылки href с тегом <a> */
                         String releasesHTML = readFile("releases.html")
-                        List<String> urls = Regex.groupAll(releasesHTML, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
+                        List<String> urlsList = Regex.groupAll(releasesHTML, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
 
                         /* Преобразование относительных ссылок в абсолютные */
                         Shell.echo("Преобразовываю относительные ссылки в абсолютные")
-                        List<String> absoluteUrls = new ArrayList<>()
-                        int size = urls.size()
+                        List<String> absoluteUrlsList = new ArrayList<>()
+                        int size = urlsList.size()
                         for (int i = 0; i < size; i++) {
-                            String currentUrl = urls.get(i)
+                            String currentUrl = urlsList.get(i)
                             if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+\$")) {
                                 /* Относительная ссылка */
-                                absoluteUrls.add(url + currentUrl)
+                                absoluteUrlsList.add(appUrl + currentUrl)
                             } else {
                                 /* Абсолютная ссылка */
-                                absoluteUrls.add(currentUrl)
+                                absoluteUrlsList.add(currentUrl)
                             }
                         }
 
                         /* Отобрать только те ссылки, которые подходят по регулярному выражению */
+                        /* Но сначала создать массив регулярных выражений */
                         Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
-                        urls = new ArrayList<>()
-                        size = absoluteUrls.size()
+                        String[] regexArray = new String[appDistributiveUrlRegexCount]
+                        for (int i = 0; i < appDistributiveUrlRegexCount; i++) {
+                            regexArray[i] = env["app_distributive_url_regex${i}"]
+                        }
+                        urlsList.clear()
+                        size = absoluteUrlsList.size()
                         for (int i = 0; i < size; i++) {
-                            String currentUrl = absoluteUrls.get(i)
-                            if (Regex.find(currentUrl, distributiveUrlRegex)) {
-                                urls.add(currentUrl)
+                            String currentUrl = absoluteUrlsList.get(i)
+
+                            Boolean success = true
+                            for (int regex = 0; i < appDistributiveUrlRegexCount; regex++) {
+                                if (!Regex.find(currentUrl, regexArray[regex])) {
+                                    success = false
+                                    break
+                                }
+                            }
+
+                            if (success) {
+                                // Подходящая ссылка
+                                if (!urlsList.contains(currentUrl)) {
+                                    // Уникальная ссылка
+                                    urlsList.add(currentUrl)
+                                }
                             }
                         }
 
-                        /* Если ссылок несколько запросить ввод */
+                        /* Инвертирование списка */
+                        if (appUrlReverse) {
+                            Shell.echo("Инвертирую список")
+                            urlsList = urlsList.reverse()
+                        }
+
+                        /* Если ссылок несколько, то запросить ввод */
                         String downloadUrl = null
-                        size = urls.size()
+                        size = urlsList.size()
                         if (size == 0) {
                             Shell.error("Найдено ${size} ссылок")
                         } else {
                             Shell.echo("Найдено ${size} ссылок")
                             if (size == 1) {
-                                downloadUrl = urls.get(0)
+                                downloadUrl = urlsList.get(0)
                             } else {
-                                downloadUrl = input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urls.join('\n'))]).toString()
+                                downloadUrl = input(message: "Выбор версии ${appUrl}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
                             }
                         }
 
@@ -228,20 +312,20 @@ pipeline {
                         } else {
                             fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
                         }
-                        Util.downloadFile(downloadUrl, fileName)
+                        if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
                         Util.unarchiveFile(fileName, buildDirectory, true)
                     }
 
                     Runnable distributiveRunnable = {
                         /* Скачать дистрибутив */
-                        String downloadUrl = url
+                        String downloadUrl = appUrl
                         String fileName
                         if (isFileNameDefined) {
                             fileName = Regex.group(downloadUrl, "[\\?\\&]file_name=([A-Za-z0-9\\-_\\.])")
                         } else {
                             fileName = Regex.group(downloadUrl, ".+\\/(.+)\$")
                         }
-                        Util.downloadFile(downloadUrl, fileName)
+                        if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
                         Util.unarchiveFile(fileName, buildDirectory, true)
                     }
 
