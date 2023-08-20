@@ -243,13 +243,11 @@ pipeline {
                     MyGlobal.themesDirectory = env.themes_directory
                     MyGlobal.themesCount = env.themes_count.toInteger()
                     MyGlobal.themeUrlReverse = env.theme_url_reverse.toBoolean()
-                    MyGlobal.themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count
+                    MyGlobal.themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count.toInteger()
                     MyGlobal.pluginsDirectory = env.plugins_directory
                     MyGlobal.pluginsCount = env.plugins_count.toInteger()
                     MyGlobal.pluginUrlReverse = env.plugin_url_reverse.toBoolean()
-                    MyGlobal.pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count
-
-                    Shell.echo("${MyGlobal.pluginDistributiveUrlRegexCount} = ${env.plugin_distributive_url_regex_count}")
+                    MyGlobal.pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count.toInteger()
 
                     if (MyGlobal.useLatestVersion == null) {
                         useLatestVersion = true
