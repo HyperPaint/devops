@@ -7,66 +7,68 @@ import hyperpaint.util.Util
 
 Shell.setJenkins(this)
 
-/* Получение параметров, проверка и назначение значений по-умолчанию */
-/** Выбирать последние версии автоматически */
-Boolean useLatestVersion = params.use_latest_version
-Boolean useLatestVersionDefault = false
-String useLatestVersionDescription = "Выбирать последние версии автоматически"
-/** Использовать кэш загрузок */
-Boolean useCacheFile = params.use_cache_file
-Boolean useCacheFileDefault = true
-String useCacheFileDescription = "Использовать кэш загрузок"
-/** Использовать кэш сборок */
-Boolean useCacheDocker = params.use_cache_docker
-Boolean useCacheDockerDefault = true
-String useCacheDockerDescription = "Использовать кэш сборок"
-/** Деплой и проверка состояния контейнера */
-Boolean deployImage = params.deploy_image
-Boolean deployImageDefault = true
-String deployImageDescription = "Деплой и проверка состояния контейнера"
-/** Экспортировать образ */
-Boolean exportImage = params.export_image
-Boolean exportImageDefault = false
-String exportImageDescription = "Экспортировать образ"
-/** Удалить образ */
-Boolean deleteImage = params.delete_image
-Boolean deleteImageDefault = false
-String deleteImageDescription = "Удалить образ"
+class MyGlobal {
+    /* Получение параметров, проверка и назначение значений по-умолчанию */
+    /** Выбирать последние версии автоматически */
+    static Boolean useLatestVersion = params.use_latest_version
+    static Boolean useLatestVersionDefault = false
+    static String useLatestVersionDescription = "Выбирать последние версии автоматически"
+    /** Использовать кэш загрузок */
+    static Boolean useCacheFile = params.use_cache_file
+    static Boolean useCacheFileDefault = true
+    static String useCacheFileDescription = "Использовать кэш загрузок"
+    /** Использовать кэш сборок */
+    static Boolean useCacheDocker = params.use_cache_docker
+    static Boolean useCacheDockerDefault = true
+    static String useCacheDockerDescription = "Использовать кэш сборок"
+    /** Деплой и проверка состояния контейнера */
+    static Boolean deployImage = params.deploy_image
+    static Boolean deployImageDefault = true
+    static String deployImageDescription = "Деплой и проверка состояния контейнера"
+    /** Экспортировать образ */
+    static Boolean exportImage = params.export_image
+    static Boolean exportImageDefault = false
+    static String exportImageDescription = "Экспортировать образ"
+    /** Удалить образ */
+    static Boolean deleteImage = params.delete_image
+    static Boolean deleteImageDefault = false
+    static String deleteImageDescription = "Удалить образ"
 
-/* Получение переменных окружения */
-String hostCredentials = env.host_credentials
-String sshCredentials = env.ssh_credentials
-String dockerComposeProjectDirectory = env.docker_compose_project_directory
+    /* Получение переменных окружения */
+    static String hostCredentials = env.host_credentials
+    static String sshCredentials = env.ssh_credentials
+    static String dockerComposeProjectDirectory = env.docker_compose_project_directory
 
-/** Docker image name */
-String imageName = env.image_name
+    /** Docker image name */
+    static String imageName = env.image_name
 
-/** URL на страницу с релизами или дистрибутив */
-String appUrl = env.app_url
-/** Инвертировать список ссылок */
-Boolean appUrlReverse = env.app_url_reverse.toBoolean()
-/** Количество регулярных выражений для отбора ссылок */
-Integer appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
+    /** URL на страницу с релизами или дистрибутив */
+    static String appUrl = env.app_url
+    /** Инвертировать список ссылок */
+    static Boolean appUrlReverse = env.app_url_reverse.toBoolean()
+    /** Количество регулярных выражений для отбора ссылок */
+    static Integer appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
 
-String themesDirectory = env.themes_directory
-/** Количество плагинов */
-Integer themesCount = env.themes_count.toInteger()
-/** Инвертировать список ссылок */
-Boolean themeUrlReverse = env.theme_url_reverse.toBoolean()
-/** Количество регулярных выражений для отбора ссылок */
-Integer themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count
+    static String themesDirectory = env.themes_directory
+    /** Количество плагинов */
+    static Integer themesCount = env.themes_count.toInteger()
+    /** Инвертировать список ссылок */
+    static Boolean themeUrlReverse = env.theme_url_reverse.toBoolean()
+    /** Количество регулярных выражений для отбора ссылок */
+    static Integer themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count
 
-String pluginsDirectory = env.plugins_directory
-/** Количество плагинов */
-Integer pluginsCount = env.plugins_count.toInteger()
-/** Инвертировать список ссылок */
-Boolean pluginUrlReverse = env.plugin_url_reverse.toBoolean()
-/** Количество регулярных выражений для отбора ссылок */
-Integer pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count
+    static String pluginsDirectory = env.plugins_directory
+    /** Количество плагинов */
+    static Integer pluginsCount = env.plugins_count.toInteger()
+    /** Инвертировать список ссылок */
+    static Boolean pluginUrlReverse = env.plugin_url_reverse.toBoolean()
+    /** Количество регулярных выражений для отбора ссылок */
+    static Integer pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count
 
-/* Константы */
-int cacheLifetime = 86400
-String buildDirectory = "build-directory"
+    /* Константы */
+    static int cacheLifetime = 86400
+    static String buildDirectory = "build-directory"
+}
 
 /* Функции */
 
@@ -82,10 +84,10 @@ String buildDirectory = "build-directory"
  * @param urlReverse Инвертировать список ссылок
  * @param destination Директория, в которую распаковать дистрибутив
  */
-void releasesPage(String artifactFileName, String url, String[] regexArray, Boolean urlReverse, String destination) {
+static void releasesPage(String artifactFileName, String url, String[] regexArray, Boolean urlReverse, String destination) {
     String releasesHtmlFileName
     if (artifactFileName == null) releasesHtmlFileName = "releases.html" else releasesHtmlFileName = "releases-${artifactFileName}.html"
-    if (useCacheFile) Util.downloadFile(url, releasesHtmlFileName, cacheLifetime) else Util.downloadFile(url, releasesHtmlFileName, -1)
+    if (MyGlobal.useCacheFile) Util.downloadFile(url, releasesHtmlFileName, MyGlobal.cacheLifetime) else Util.downloadFile(url, releasesHtmlFileName, -1)
 
     /* Найти на странице с релизами все ссылки href с тегом <a> */
     String releasesHtml = readFile(releasesHtmlFileName)
@@ -143,7 +145,7 @@ void releasesPage(String artifactFileName, String url, String[] regexArray, Bool
         if (urlsList.size() == 1) {
             downloadUrl = urlsList.get(0)
         } else {
-            if (useLatestVersion) {
+            if (MyGlobal.useLatestVersion) {
                 downloadUrl = urlsList.get(0)
             } else {
                 downloadUrl = input(message: "Выбор версии ${url}", parameters: [choice(name: "Версия", choices: urlsList.join('\n'))]).toString()
@@ -153,7 +155,7 @@ void releasesPage(String artifactFileName, String url, String[] regexArray, Bool
 
     /* Скачать дистрибутив */
     String fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(?.*){0,1}\$")
-    if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
+    if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
     Util.unarchiveFile(fileName, destination, true)
 }
 
@@ -163,7 +165,7 @@ void releasesPage(String artifactFileName, String url, String[] regexArray, Bool
  * @param url URL на страницу с релизами или дистрибутив
  * @param destination Директория, в которую распаковать дистрибутив
  */
-void distributive(Boolean isArtifactFileNameDefined, String url, String destination) {
+static void distributive(Boolean isArtifactFileNameDefined, String url, String destination) {
     /* Скачать дистрибутив */
     String downloadUrl = url
     String fileName
@@ -172,19 +174,19 @@ void distributive(Boolean isArtifactFileNameDefined, String url, String destinat
     } else {
         fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(?.*){0,1}\$")
     }
-    if (useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
+    if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
     Util.unarchiveFile(fileName, destination, true)
 }
 
 pipeline {
     agent any
     parameters {
-        booleanParam(name: "use_latest_version", defaultValue: useLatestVersionDefault, description: useLatestVersionDescription)
-        booleanParam(name: "use_cache_file", defaultValue: useCacheFileDefault, description: useCacheFileDescription)
-        booleanParam(name: "use_cache_docker", defaultValue: useCacheDockerDefault, description: useCacheDockerDescription)
-        booleanParam(name: "deploy_image", defaultValue: deployImageDefault, description: deployImageDescription)
-        booleanParam(name: "export_image", defaultValue: exportImageDefault, description: exportImageDescription)
-        booleanParam(name: "delete_image", defaultValue: deleteImageDefault, description: deleteImageDescription)
+        booleanParam(name: "use_latest_version", defaultValue: MyGlobal.useLatestVersionDefault, description: MyGlobal.useLatestVersionDescription)
+        booleanParam(name: "use_cache_file", defaultValue: MyGlobal.useCacheFileDefault, description: MyGlobal.useCacheFileDescription)
+        booleanParam(name: "use_cache_docker", defaultValue: MyGlobal.useCacheDockerDefault, description: MyGlobal.useCacheDockerDescription)
+        booleanParam(name: "deploy_image", defaultValue: MyGlobal.deployImageDefault, description: MyGlobal.deployImageDescription)
+        booleanParam(name: "export_image", defaultValue: MyGlobal.exportImageDefault, description: MyGlobal.exportImageDescription)
+        booleanParam(name: "delete_image", defaultValue: MyGlobal.deleteImageDefault, description: MyGlobal.deleteImageDescription)
     }
     options {
         disableConcurrentBuilds()
@@ -198,44 +200,44 @@ pipeline {
                     String notFoundParamStringSetDefault = "Параметр '%s' не найден, использую стандартное значение '%s'"
                     String foundParamString = "Параметр '%s' найден"
 
-                    if (useLatestVersion == null) {
+                    if (MyGlobal.useLatestVersion == null) {
                         useLatestVersion = true
-                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_latest_version", useLatestVersion.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_latest_version", MyGlobal.useLatestVersion.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "use_latest_version"))
                     }
 
-                    if (useCacheFile == null) {
+                    if (MyGlobal.useCacheFile == null) {
                         useCacheFile = true
-                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_file", useCacheFile.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_file", MyGlobal.useCacheFile.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "use_cache_file"))
                     }
 
-                    if (useCacheDocker == null) {
+                    if (MyGlobal.useCacheDocker == null) {
                         useCacheDocker = true
-                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_docker", useCacheDocker.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "use_cache_docker", MyGlobal.useCacheDocker.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "use_cache_docker"))
                     }
 
-                    if (deployImage == null) {
+                    if (MyGlobal.deployImage == null) {
                         deployImage = true
-                        Shell.echo(String.format(notFoundParamStringSetDefault, "deploy_image", deployImage.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "deploy_image", MyGlobal.deployImage.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "deploy_image"))
                     }
 
-                    if (exportImage == null) {
+                    if (MyGlobal.exportImage == null) {
                         exportImage = true
-                        Shell.echo(String.format(notFoundParamStringSetDefault, "export_image", exportImage.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "export_image", MyGlobal.exportImage.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "export_image"))
                     }
 
-                    if (deleteImage == null) {
+                    if (MyGlobal.deleteImage == null) {
                         deleteImage = true
-                        Shell.echo(String.format(notFoundParamStringSetDefault, "delete_image", deleteImage.toString()))
+                        Shell.echo(String.format(notFoundParamStringSetDefault, "delete_image", MyGlobal.deleteImage.toString()))
                     } else {
                         Shell.echo(String.format(foundParamString, "delete_image"))
                     }
@@ -247,50 +249,50 @@ pipeline {
                     String notFoundEnvStringError = "Переменная окружения '%s' не найдена, выполнение невозможно"
                     String foundEnvString = "Переменная окружения '%s' найдена"
 
-                    if (hostCredentials == null) {
+                    if (MyGlobal.hostCredentials == null) {
                         Shell.error(String.format(notFoundEnvStringError, "host_credentials"))
                     } else {
                         Shell.echo(String.format(foundEnvString, "host_credentials"))
                     }
 
-                    if (sshCredentials == null) {
+                    if (MyGlobal.sshCredentials == null) {
                         Shell.error(String.format(notFoundEnvStringError, "ssh_credentials"))
                     } else {
                         Shell.echo(String.format(foundEnvString, "ssh_credentials"))
                     }
 
-                    if (dockerComposeProjectDirectory == null) {
+                    if (MyGlobal.dockerComposeProjectDirectory == null) {
                         Shell.error(String.format(notFoundEnvStringError, "docker_compose_project_directory"))
                     } else {
                         Shell.echo(String.format(foundEnvString, "docker_compose_project_directory"))
                     }
 
-                    if (imageName == null) {
+                    if (MyGlobal.imageName == null) {
                         Shell.error(String.format(notFoundEnvStringError, "image_name"))
                     } else {
                         Shell.echo(String.format(foundEnvString, "image_name"))
                     }
 
-                    if (appUrl == null) {
+                    if (MyGlobal.appUrl == null) {
                         Shell.error(String.format(notFoundEnvStringError, "app_url"))
                     } else {
                         Shell.echo(String.format(foundEnvString, "app_url"))
                     }
 
-                    if (appUrlReverse == null) {
+                    if (MyGlobal.appUrlReverse == null) {
                         appUrlReverse = false
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_url_reverse", appUrlReverse))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_url_reverse", MyGlobal.appUrlReverse))
                     } else {
                         Shell.echo(String.format(foundEnvString, "app_url_reverse"))
                     }
 
-                    if (appDistributiveUrlRegexCount == null) {
+                    if (MyGlobal.appDistributiveUrlRegexCount == null) {
                         appDistributiveUrlRegexCount = 0
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_distributive_url_regex_count", appDistributiveUrlRegexCount))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_distributive_url_regex_count", MyGlobal.appDistributiveUrlRegexCount))
                     } else {
                         Shell.echo(String.format(foundEnvString, "app_distributive_url_regex_count"))
-                        if (appDistributiveUrlRegexCount != 0) {
-                            for (int i = 1; i <= appDistributiveUrlRegexCount; i++) {
+                        if (MyGlobal.appDistributiveUrlRegexCount != 0) {
+                            for (int i = 1; i <= MyGlobal.appDistributiveUrlRegexCount; i++) {
                                 if (env["app_distributive_url_regex${i}"] == null) {
                                     Shell.error(String.format(notFoundEnvStringError, "app_distributive_url_regex${i}"))
                                 } else {
@@ -300,19 +302,19 @@ pipeline {
                         }
                     }
 
-                    if (themesCount == null) {
+                    if (MyGlobal.themesCount == null) {
                         themesCount = 0
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "themes_count", themesCount.toString()))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "themes_count", MyGlobal.themesCount.toString()))
                     } else {
                         Shell.echo(String.format(foundEnvString, "themes_count"))
-                        if (themesCount != 0) {
-                            if (themesDirectory == null) {
+                        if (MyGlobal.themesCount != 0) {
+                            if (MyGlobal.themesDirectory == null) {
                                 Shell.error(String.format(notFoundEnvStringError, "themes_directory"))
                             } else {
                                 Shell.echo(String.format(foundEnvString, "themes_directory"))
                             }
 
-                            for (int i = 1; i <= themesCount; i++) {
+                            for (int i = 1; i <= MyGlobal.themesCount; i++) {
                                 if (env["theme_url${i}"] == null) {
                                     Shell.error(String.format(notFoundEnvStringError, "theme_url${i}"))
                                 } else {
@@ -320,20 +322,20 @@ pipeline {
                                 }
                             }
 
-                            if (themeUrlReverse == null) {
+                            if (MyGlobal.themeUrlReverse == null) {
                                 themeUrlReverse = false
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_url_reverse", themeUrlReverse))
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_url_reverse", MyGlobal.themeUrlReverse))
                             } else {
                                 Shell.echo(String.format(foundEnvString, "theme_url_reverse"))
                             }
 
-                            if (themeDistributiveUrlRegexCount == null) {
+                            if (MyGlobal.themeDistributiveUrlRegexCount == null) {
                                 themeDistributiveUrlRegexCount = 0
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_distributive_url_regex_count", themeDistributiveUrlRegexCount))
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_distributive_url_regex_count", MyGlobal.themeDistributiveUrlRegexCount))
                             } else {
                                 Shell.echo(String.format(foundEnvString, "theme_distributive_url_regex_count"))
-                                if (themeDistributiveUrlRegexCount != 0) {
-                                    for (int i = 1; i <= themeDistributiveUrlRegexCount; i++) {
+                                if (MyGlobal.themeDistributiveUrlRegexCount != 0) {
+                                    for (int i = 1; i <= MyGlobal.themeDistributiveUrlRegexCount; i++) {
                                         if (env["theme_distributive_url_regex${i}"] == null) {
                                             Shell.error(String.format(notFoundEnvStringError, "theme_distributive_url_regex${i}"))
                                         } else {
@@ -345,19 +347,19 @@ pipeline {
                         }
                     }
 
-                    if (pluginsCount == null) {
+                    if (MyGlobal.pluginsCount == null) {
                         pluginsCount = 0
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "plugins_count", pluginsCount.toString()))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "plugins_count", MyGlobal.pluginsCount.toString()))
                     } else {
                         Shell.echo(String.format(foundEnvString, "plugins_count"))
-                        if (pluginsCount != 0) {
-                            if (pluginsDirectory == null) {
+                        if (MyGlobal.pluginsCount != 0) {
+                            if (MyGlobal.pluginsDirectory == null) {
                                 Shell.error(String.format(notFoundEnvStringError, "plugins_directory"))
                             } else {
                                 Shell.echo(String.format(foundEnvString, "plugins_directory"))
                             }
 
-                            for (int i = 1; i <= pluginsCount; i++) {
+                            for (int i = 1; i <= MyGlobal.pluginsCount; i++) {
                                 if (env["plugin_url${i}"] == null) {
                                     Shell.error(String.format(notFoundEnvStringError, "plugin_url${i}"))
                                 } else {
@@ -365,20 +367,20 @@ pipeline {
                                 }
                             }
 
-                            if (pluginUrlReverse == null) {
+                            if (MyGlobal.pluginUrlReverse == null) {
                                 pluginUrlReverse = false
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_url_reverse", pluginUrlReverse))
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_url_reverse", MyGlobal.pluginUrlReverse))
                             } else {
                                 Shell.echo(String.format(foundEnvString, "plugin_url_reverse"))
                             }
 
-                            if (pluginDistributiveUrlRegexCount == null) {
+                            if (MyGlobal.pluginDistributiveUrlRegexCount == null) {
                                 pluginDistributiveUrlRegexCount = 0
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_distributive_url_regex_count", pluginDistributiveUrlRegexCount))
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_distributive_url_regex_count", MyGlobal.pluginDistributiveUrlRegexCount))
                             } else {
                                 Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex_count"))
-                                if (pluginDistributiveUrlRegexCount != 0) {
-                                    for (int i = 1; i <= pluginDistributiveUrlRegexCount; i++) {
+                                if (MyGlobal.pluginDistributiveUrlRegexCount != 0) {
+                                    for (int i = 1; i <= MyGlobal.pluginDistributiveUrlRegexCount; i++) {
                                         if (env["plugin_distributive_url_regex${i}"] == null) {
                                             Shell.error(String.format(notFoundEnvStringError, "plugin_distributive_url_regex${i}"))
                                         } else {
@@ -396,37 +398,37 @@ pipeline {
             steps {
                 script {
                     /* Распарсить параметры из ссылки */
-                    Boolean isArtifactFileNameDefined = Regex.find(appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
-                    Boolean isReleasesPage = Regex.find(appUrl, "[\\?\\&]is_releases_page=1")
+                    Boolean isArtifactFileNameDefined = Regex.find(MyGlobal.appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
+                    Boolean isReleasesPage = Regex.find(MyGlobal.appUrl, "[\\?\\&]is_releases_page=1")
                     if (isReleasesPage) {
                         if (isArtifactFileNameDefined) {
-                            Shell.echo("${appUrl} - Страница HTML с ссылками с именем артефакта")
+                            Shell.echo("${MyGlobal.appUrl} - Страница HTML с ссылками с именем артефакта")
                         } else {
-                            Shell.echo("${appUrl} - Страница HTML с ссылками")
+                            Shell.echo("${MyGlobal.appUrl} - Страница HTML с ссылками")
                         }
                     }
-                    Boolean isDistributive = Regex.find(appUrl, "[\\?\\&]is_distributive=1")
+                    Boolean isDistributive = Regex.find(MyGlobal.appUrl, "[\\?\\&]is_distributive=1")
                     if (isDistributive && !isReleasesPage) {
                         if (isArtifactFileNameDefined) {
-                            Shell.echo("${appUrl} - Архив дистрибутива с именем артефакта")
+                            Shell.echo("${MyGlobal.appUrl} - Архив дистрибутива с именем артефакта")
                         } else {
-                            Shell.echo("${appUrl} - Архив дистрибутива")
+                            Shell.echo("${MyGlobal.appUrl} - Архив дистрибутива")
                         }
                     }
 
                     Runnable releasesPageRunnable = {
                         //String artifactFileName = Regex.group(appUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
-                        String[] regexArray = new String[appDistributiveUrlRegexCount]
-                        for (int i = 0; i < appDistributiveUrlRegexCount; i++) {
+                        String[] regexArray = new String[MyGlobal.appDistributiveUrlRegexCount]
+                        for (int i = 0; i < MyGlobal.appDistributiveUrlRegexCount; i++) {
                             regexArray[i] = env["app_distributive_url_regex${i+1}"]
                         }
-                        releasesPage(null, appUrl, regexArray, appUrlReverse, buildDirectory)
+                        releasesPage(null, MyGlobal.appUrl, regexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory)
                     }
 
                     if (isReleasesPage) {
                         releasesPageRunnable.run()
                     } else if (isDistributive) {
-                        distributive(isArtifactFileNameDefined, appUrl, buildDirectory)
+                        distributive(isArtifactFileNameDefined, MyGlobal.appUrl, MyGlobal.buildDirectory)
                     } else {
                         releasesPageRunnable.run()
                     }
