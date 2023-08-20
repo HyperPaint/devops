@@ -342,11 +342,11 @@ pipeline {
                     } else {
                         Shell.echo(String.format(foundEnvString, "app_distributive_url_regex_count"))
                         if (MyGlobal.appDistributiveUrlRegexCount != 0) {
-                            for (int i = 1; i <= MyGlobal.appDistributiveUrlRegexCount; i++) {
-                                if (env["app_distributive_url_regex${i}"] == null) {
-                                    Shell.error(String.format(notFoundEnvStringError, "app_distributive_url_regex${i}"))
+                            for (int regexIndex = 1; regexIndex <= MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
+                                if (env["app_distributive_url_regex${regexIndex}"] == null) {
+                                    Shell.error(String.format(notFoundEnvStringError, "app_distributive_url_regex${regexIndex}"))
                                 } else {
-                                    Shell.echo(String.format(foundEnvString, "app_distributive_url_regex${i}"))
+                                    Shell.echo(String.format(foundEnvString, "app_distributive_url_regex${regexIndex}"))
                                 }
                             }
                         }
@@ -364,11 +364,11 @@ pipeline {
                                 Shell.echo(String.format(foundEnvString, "themes_directory"))
                             }
 
-                            for (int i = 1; i <= MyGlobal.themesCount; i++) {
-                                if (env["theme_url${i}"] == null) {
-                                    Shell.error(String.format(notFoundEnvStringError, "theme_url${i}"))
+                            for (int themeIndex = 1; themeIndex <= MyGlobal.themesCount; themeIndex++) {
+                                if (env["theme_url${themeIndex}"] == null) {
+                                    Shell.error(String.format(notFoundEnvStringError, "theme_url${themeIndex}"))
                                 } else {
-                                    Shell.echo(String.format(foundEnvString, "theme_url${i}"))
+                                    Shell.echo(String.format(foundEnvString, "theme_url${themeIndex}"))
                                 }
                             }
 
@@ -385,11 +385,11 @@ pipeline {
                             } else {
                                 Shell.echo(String.format(foundEnvString, "theme_distributive_url_regex_count"))
                                 if (MyGlobal.themeDistributiveUrlRegexCount != 0) {
-                                    for (int i = 1; i <= MyGlobal.themeDistributiveUrlRegexCount; i++) {
-                                        if (env["theme_distributive_url_regex${i}"] == null) {
-                                            Shell.error(String.format(notFoundEnvStringError, "theme_distributive_url_regex${i}"))
+                                    for (int regexIndex = 1; regexIndex <= MyGlobal.themeDistributiveUrlRegexCount; regexIndex++) {
+                                        if (env["theme_distributive_url_regex${regexIndex}"] == null) {
+                                            Shell.error(String.format(notFoundEnvStringError, "theme_distributive_url_regex${regexIndex}"))
                                         } else {
-                                            Shell.echo(String.format(foundEnvString, "theme_distributive_url_regex${i}"))
+                                            Shell.echo(String.format(foundEnvString, "theme_distributive_url_regex${regexIndex}"))
                                         }
                                     }
                                 }
@@ -409,11 +409,11 @@ pipeline {
                                 Shell.echo(String.format(foundEnvString, "plugins_directory"))
                             }
 
-                            for (int i = 1; i <= MyGlobal.pluginsCount; i++) {
-                                if (env["plugin_url${i}"] == null) {
-                                    Shell.error(String.format(notFoundEnvStringError, "plugin_url${i}"))
+                            for (int pluginIndex = 1; pluginIndex <= MyGlobal.pluginsCount; pluginIndex++) {
+                                if (env["plugin_url${pluginIndex}"] == null) {
+                                    Shell.error(String.format(notFoundEnvStringError, "plugin_url${pluginIndex}"))
                                 } else {
-                                    Shell.echo(String.format(foundEnvString, "plugin_url${i}"))
+                                    Shell.echo(String.format(foundEnvString, "plugin_url${pluginIndex}"))
                                 }
                             }
 
@@ -430,11 +430,11 @@ pipeline {
                             } else {
                                 Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex_count"))
                                 if (MyGlobal.pluginDistributiveUrlRegexCount != 0) {
-                                    for (int i = 1; i <= MyGlobal.pluginDistributiveUrlRegexCount; i++) {
-                                        if (env["plugin_distributive_url_regex${i}"] == null) {
-                                            Shell.error(String.format(notFoundEnvStringError, "plugin_distributive_url_regex${i}"))
+                                    for (int regexIndex = 1; regexIndex <= MyGlobal.pluginDistributiveUrlRegexCount; regexIndex++) {
+                                        if (env["plugin_distributive_url_regex${regexIndex}"] == null) {
+                                            Shell.error(String.format(notFoundEnvStringError, "plugin_distributive_url_regex${regexIndex}"))
                                         } else {
-                                            Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex${i}"))
+                                            Shell.echo(String.format(foundEnvString, "plugin_distributive_url_regex${regexIndex}"))
                                         }
                                     }
                                 }
