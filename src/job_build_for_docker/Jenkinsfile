@@ -90,7 +90,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     if (MyGlobal.useCacheFile) Util.downloadFile(url, releasesHtmlFileName, MyGlobal.cacheLifetime) else Util.downloadFile(url, releasesHtmlFileName, -1)
 
     /* Найти на странице с релизами все ссылки href с тегом <a> */
-    String releasesHtml = new File("releasesHtmlFileName").getText()
+    String releasesHtml = new File(releasesHtmlFileName).getText()
     List<String> urlsList = Regex.groupAll(releasesHtml, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.]+)\"[A-Za-z0-9\\-_\\.\\s]*>")
 
     /* Преобразование относительных ссылок в абсолютные */
