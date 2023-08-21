@@ -50,6 +50,10 @@ class MyGlobal {
     static Boolean appUrlReverse = null
     /** Количество регулярных выражений для отбора ссылок */
     static Integer appDistributiveUrlRegexCount = null
+    /** sh скрипт, выполняемый после распаковки дистрибутива */
+    static String appActionSh = null
+    /** sh скрипт, выполняемый перед сборкой образа */
+    static String appConfigureSh = null
 
     static String themesDirectory = null
     /** Количество плагинов */
@@ -58,6 +62,8 @@ class MyGlobal {
     static Boolean themeUrlReverse = null
     /** Количество регулярных выражений для отбора ссылок */
     static Integer themeDistributiveUrlRegexCount = null
+    /** sh скрипт, выполняемый после распаковки дистрибутива */
+    static String themeActionSh = null
 
     static String pluginsDirectory = null
     /** Количество плагинов */
@@ -66,6 +72,8 @@ class MyGlobal {
     static Boolean pluginUrlReverse = null
     /** Количество регулярных выражений для отбора ссылок */
     static Integer pluginDistributiveUrlRegexCount = null
+    /** sh скрипт, выполняемый после распаковки дистрибутива */
+    static String pluginActionSh = null
 
     /* Константы */
     static int cacheLifetime = 86400
@@ -90,8 +98,9 @@ MyGlobal.jenkins = this
  * @param regexArray Массив регулярных выражений для отбора ссылок
  * @param urlReverse Инвертировать список ссылок
  * @param destination Директория, в которую распаковать дистрибутив
+ * @param deleteDestinationDirectoryIfExists Удалить директорию, в которую распаковать дистрибутив
  */
-static void releasesPage(String artifactFileName, String url, String[] regexArray, Boolean urlReverse, String destination) {
+static void releasesPage(String artifactFileName, String url, String[] regexArray, Boolean urlReverse, String destination, Boolean deleteDestinationDirectoryIfExists = false) {
     String releasesHtmlFileName
     if (artifactFileName == null) releasesHtmlFileName = "releases.html" else releasesHtmlFileName = "releases-${artifactFileName}.html"
     if (MyGlobal.useCacheFile) Util.downloadFile(url, releasesHtmlFileName, MyGlobal.cacheLifetime) else Util.downloadFile(url, releasesHtmlFileName, -1)
@@ -163,7 +172,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     /* Скачать дистрибутив */
     String fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(\\?.*){0,1}\$")
     if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
-    Util.unarchiveFile(fileName, destination, true)
+    Util.unarchiveFile(fileName, destination, deleteDestinationDirectoryIfExists)
 }
 
 /**
@@ -171,8 +180,9 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
  * @param isArtifactFileNameDefined Название файла артефакта задано
  * @param url URL на страницу с релизами или дистрибутив
  * @param destination Директория, в которую распаковать дистрибутив
+ * @param deleteDestinationDirectoryIfExists Удалить директорию, в которую распаковать дистрибутив
  */
-static void distributive(Boolean isArtifactFileNameDefined, String url, String destination) {
+static void distributive(Boolean isArtifactFileNameDefined, String url, String destination, Boolean deleteDestinationDirectoryIfExists = false) {
     /* Скачать дистрибутив */
     String downloadUrl = url
     String fileName
@@ -182,7 +192,7 @@ static void distributive(Boolean isArtifactFileNameDefined, String url, String d
         fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(\\?.*){0,1}\$")
     }
     if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
-    Util.unarchiveFile(fileName, destination, true)
+    Util.unarchiveFile(fileName, destination, deleteDestinationDirectoryIfExists)
 }
 
 static void isReleasesPageEcho(String url, Boolean isReleasesPage, Boolean isArtifactFileNameDefined) {
@@ -233,21 +243,30 @@ pipeline {
                     MyGlobal.deployImage = params.deploy_image
                     MyGlobal.exportImage = params.export_image
                     MyGlobal.deleteImage = params.delete_image
+
                     MyGlobal.hostCredentials = env.host_credentials
                     MyGlobal.sshCredentials = env.ssh_credentials
                     MyGlobal.dockerComposeProjectDirectory = env.docker_compose_project_directory
+
                     MyGlobal.imageName = env.image_name
+
                     MyGlobal.appUrl = env.app_url
                     MyGlobal.appUrlReverse = env.app_url_reverse.toBoolean()
                     MyGlobal.appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
+                    MyGlobal.appActionSh = env.app_action_sh
+                    MyGlobal.appConfigureSh = env.app_configure_sh
+
                     MyGlobal.themesDirectory = env.themes_directory
                     MyGlobal.themesCount = env.themes_count.toInteger()
                     MyGlobal.themeUrlReverse = env.theme_url_reverse.toBoolean()
                     MyGlobal.themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count.toInteger()
+                    MyGlobal.themeActionSh = env.theme_action_sh
+
                     MyGlobal.pluginsDirectory = env.plugins_directory
                     MyGlobal.pluginsCount = env.plugins_count.toInteger()
                     MyGlobal.pluginUrlReverse = env.plugin_url_reverse.toBoolean()
                     MyGlobal.pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count.toInteger()
+                    MyGlobal.pluginActionSh = env.plugin_action_sh
 
                     if (MyGlobal.useLatestVersion == null) {
                         useLatestVersion = true
@@ -351,6 +370,20 @@ pipeline {
                         }
                     }
 
+                    if (MyGlobal.appActionSh == null) {
+                        MyGlobal.appActionSh = ""
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_action_sh", MyGlobal.appActionSh))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "app_action_sh"))
+                    }
+
+                    if (MyGlobal.appConfigureSh == null) {
+                        MyGlobal.appConfigureSh = ""
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_configure_sh", MyGlobal.appConfigureSh))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "app_configure_sh"))
+                    }
+
                     if (MyGlobal.themesCount == null) {
                         themesCount = 0
                         Shell.echo(String.format(notFoundEnvStringSetDefault, "themes_count", MyGlobal.themesCount.toString()))
@@ -392,6 +425,13 @@ pipeline {
                                         }
                                     }
                                 }
+                            }
+
+                            if (MyGlobal.themeActionSh == null) {
+                                MyGlobal.themeActionSh = ""
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_action_sh", MyGlobal.themeActionSh))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "theme_action_sh"))
                             }
                         }
                     }
@@ -438,6 +478,13 @@ pipeline {
                                     }
                                 }
                             }
+
+                            if (MyGlobal.pluginActionSh == null) {
+                                MyGlobal.pluginActionSh = ""
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_action_sh", MyGlobal.pluginActionSh))
+                            } else {
+                                Shell.echo(String.format(foundEnvString, "plugin_action_sh"))
+                            }
                         }
                     }
                 }
@@ -458,18 +505,21 @@ pipeline {
                         for (int regexIndex = 0; regexIndex < MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
                             regexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
                         }
-                        releasesPage(null, MyGlobal.appUrl, regexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory)
+                        releasesPage(null, MyGlobal.appUrl, regexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory, true)
                     }
 
                     if (isReleasesPage) {
                         releasesPageRunnable.run()
                     } else if (isDistributive) {
-                        distributive(isArtifactNameDefined, MyGlobal.appUrl, MyGlobal.buildDirectory)
+                        distributive(isArtifactNameDefined, MyGlobal.appUrl, MyGlobal.buildDirectory, true)
                     } else {
                         releasesPageRunnable.run()
                     }
 
-                    // Удаление лишнего из дистрибутива sh
+                    if (!MyGlobal.appActionSh.isEmpty()) {
+                        Shell.echo("Пользовательское действие")
+                        Shell.sh(MyGlobal.appActionSh)
+                    }
                 }
             }
         }
@@ -500,6 +550,11 @@ pipeline {
                             distributive(isArtifactNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
                         } else {
                             releasesPageRunnable.run()
+                        }
+
+                        if (!MyGlobal.themeActionSh.isEmpty()) {
+                            Shell.echo("Пользовательское действие")
+                            Shell.sh(MyGlobal.themeActionSh)
                         }
                     }
                 }
@@ -533,14 +588,28 @@ pipeline {
                         } else {
                             releasesPageRunnable.run()
                         }
+
+                        if (!MyGlobal.pluginActionSh.isEmpty()) {
+                            Shell.echo("Пользовательское действие")
+                            Shell.sh(MyGlobal.pluginActionSh)
+                        }
                     }
                 }
             }
         }
-        /*
         stage("Настройка") {
-            // Настройка sh
+            when {
+                expression {
+                    return !MyGlobal.appConfigureSh.isEmpty()
+                }
+            }
+            steps {
+                script {
+                    Shell.sh(MyGlobal.appConfigureSh)
+                }
+            }
         }
+        /*
         stage("Docker Build") {
             // docker build
         }
