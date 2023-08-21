@@ -1,5 +1,6 @@
 package job_build_for_docker
 
+import hyperpaint.util.Docker
 @Library("devops@job_build_for_docker")
 import hyperpaint.util.Regex
 import hyperpaint.util.Shell
@@ -40,6 +41,7 @@ class MyGlobal {
     static String hostCredentials = null
     static String sshCredentials = null
     static String dockerComposeProjectDirectory = null
+    static String dockerResourcesDirectory = null
 
     /** Docker image name */
     static String imageName = null
@@ -51,9 +53,9 @@ class MyGlobal {
     /** Количество регулярных выражений для отбора ссылок */
     static Integer appDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
-    static String appActionSh = null
+    static String appActionShPath = null
     /** sh скрипт, выполняемый перед сборкой образа */
-    static String appConfigureSh = null
+    static String appConfigureShPath = null
 
     static String themesDirectory = null
     /** Количество плагинов */
@@ -63,7 +65,7 @@ class MyGlobal {
     /** Количество регулярных выражений для отбора ссылок */
     static Integer themeDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
-    static String themeActionSh = null
+    static String themeActionShPath = null
 
     static String pluginsDirectory = null
     /** Количество плагинов */
@@ -73,7 +75,7 @@ class MyGlobal {
     /** Количество регулярных выражений для отбора ссылок */
     static Integer pluginDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
-    static String pluginActionSh = null
+    static String pluginActionShPath = null
 
     /* Константы */
     static int cacheLifetime = 86400
@@ -247,26 +249,27 @@ pipeline {
                     MyGlobal.hostCredentials = env.host_credentials
                     MyGlobal.sshCredentials = env.ssh_credentials
                     MyGlobal.dockerComposeProjectDirectory = env.docker_compose_project_directory
+                    MyGlobal.dockerResourcesDirectory = env.docker_resources_directory
 
                     MyGlobal.imageName = env.image_name
 
                     MyGlobal.appUrl = env.app_url
                     MyGlobal.appUrlReverse = env.app_url_reverse.toBoolean()
                     MyGlobal.appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
-                    MyGlobal.appActionSh = env.app_action_sh
-                    MyGlobal.appConfigureSh = env.app_configure_sh
+                    MyGlobal.appActionShPath = env.app_action_sh_path
+                    MyGlobal.appConfigureShPath = env.app_configure_sh_path
 
                     MyGlobal.themesDirectory = env.themes_directory
                     MyGlobal.themesCount = env.themes_count.toInteger()
                     MyGlobal.themeUrlReverse = env.theme_url_reverse.toBoolean()
                     MyGlobal.themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count.toInteger()
-                    MyGlobal.themeActionSh = env.theme_action_sh
+                    MyGlobal.themeActionShPath = env.theme_action_sh_path
 
                     MyGlobal.pluginsDirectory = env.plugins_directory
                     MyGlobal.pluginsCount = env.plugins_count.toInteger()
                     MyGlobal.pluginUrlReverse = env.plugin_url_reverse.toBoolean()
                     MyGlobal.pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count.toInteger()
-                    MyGlobal.pluginActionSh = env.plugin_action_sh
+                    MyGlobal.pluginActionShPath = env.plugin_action_sh_path
 
                     if (MyGlobal.useLatestVersion == null) {
                         useLatestVersion = true
@@ -335,6 +338,12 @@ pipeline {
                         Shell.echo(String.format(foundEnvString, "docker_compose_project_directory"))
                     }
 
+                    if (MyGlobal.dockerResourcesDirectory == null) {
+                        Shell.error(String.format(notFoundEnvStringError, "docker_resources_directory"))
+                    } else {
+                        Shell.echo(String.format(foundEnvString, "docker_resources_directory"))
+                    }
+
                     if (MyGlobal.imageName == null) {
                         Shell.error(String.format(notFoundEnvStringError, "image_name"))
                     } else {
@@ -370,18 +379,18 @@ pipeline {
                         }
                     }
 
-                    if (MyGlobal.appActionSh == null) {
-                        MyGlobal.appActionSh = ""
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_action_sh", MyGlobal.appActionSh))
+                    if (MyGlobal.appActionShPath == null) {
+                        MyGlobal.appActionShPath = ""
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_action_sh_path", MyGlobal.appActionShPath))
                     } else {
-                        Shell.echo(String.format(foundEnvString, "app_action_sh"))
+                        Shell.echo(String.format(foundEnvString, "app_action_sh_path"))
                     }
 
-                    if (MyGlobal.appConfigureSh == null) {
-                        MyGlobal.appConfigureSh = ""
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_configure_sh", MyGlobal.appConfigureSh))
+                    if (MyGlobal.appConfigureShPath == null) {
+                        MyGlobal.appConfigureShPath = ""
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_configure_sh_path", MyGlobal.appConfigureShPath))
                     } else {
-                        Shell.echo(String.format(foundEnvString, "app_configure_sh"))
+                        Shell.echo(String.format(foundEnvString, "app_configure_sh_path"))
                     }
 
                     if (MyGlobal.themesCount == null) {
@@ -427,11 +436,11 @@ pipeline {
                                 }
                             }
 
-                            if (MyGlobal.themeActionSh == null) {
-                                MyGlobal.themeActionSh = ""
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_action_sh", MyGlobal.themeActionSh))
+                            if (MyGlobal.themeActionShPath == null) {
+                                MyGlobal.themeActionShPath = ""
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_action_sh_path", MyGlobal.themeActionShPath))
                             } else {
-                                Shell.echo(String.format(foundEnvString, "theme_action_sh"))
+                                Shell.echo(String.format(foundEnvString, "theme_action_sh_path"))
                             }
                         }
                     }
@@ -479,11 +488,11 @@ pipeline {
                                 }
                             }
 
-                            if (MyGlobal.pluginActionSh == null) {
-                                MyGlobal.pluginActionSh = ""
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_action_sh", MyGlobal.pluginActionSh))
+                            if (MyGlobal.pluginActionShPath == null) {
+                                MyGlobal.pluginActionShPath = ""
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_action_sh_path", MyGlobal.pluginActionShPath))
                             } else {
-                                Shell.echo(String.format(foundEnvString, "plugin_action_sh"))
+                                Shell.echo(String.format(foundEnvString, "plugin_action_sh_path"))
                             }
                         }
                     }
@@ -515,15 +524,28 @@ pipeline {
                     } else {
                         releasesPageRunnable.run()
                     }
-
-                    if (!MyGlobal.appActionSh.isEmpty()) {
-                        Shell.echo("Пользовательское действие")
-                        Shell.sh(MyGlobal.appActionSh)
-                    }
+                }
+            }
+        }
+        stage("Предварительная настройка дистрибутива") {
+            when {
+                expression {
+                    return !MyGlobal.appActionShPath.isEmpty()
+                }
+            }
+            steps {
+                script {
+                    Shell.echo("Предварительная настройка дистрибутива")
+                    Shell.sh(readFile(MyGlobal.appActionShPath))
                 }
             }
         }
         stage("Получаю темы") {
+            when {
+                expression {
+                    return MyGlobal.themesCount > 0
+                }
+            }
             steps {
                 script {
                     for (int theme = 1;  theme <= MyGlobal.themesCount; theme++) {
@@ -551,16 +573,29 @@ pipeline {
                         } else {
                             releasesPageRunnable.run()
                         }
-
-                        if (!MyGlobal.themeActionSh.isEmpty()) {
-                            Shell.echo("Пользовательское действие")
-                            Shell.sh(MyGlobal.themeActionSh)
-                        }
                     }
                 }
             }
         }
+        stage("Настройка тем") {
+            when {
+                expression {
+                    return MyGlobal.themesCount > 0 && !MyGlobal.themeActionShPath.isEmpty()
+                }
+            }
+            steps {
+                script {
+                    Shell.echo("Настройка тем")
+                    Shell.sh(readFile(MyGlobal.themeActionShPath))
+                }
+            }
+        }
         stage("Получаю плагины") {
+            when {
+                expression {
+                    return MyGlobal.pluginsCount > 0
+                }
+            }
             steps {
                 script {
                     for (int plugin = 1;  plugin <= MyGlobal.pluginsCount; plugin++) {
@@ -588,24 +623,33 @@ pipeline {
                         } else {
                             releasesPageRunnable.run()
                         }
-
-                        if (!MyGlobal.pluginActionSh.isEmpty()) {
-                            Shell.echo("Пользовательское действие")
-                            Shell.sh(MyGlobal.pluginActionSh)
-                        }
                     }
                 }
             }
         }
-        stage("Настройка") {
+        stage("Настройка плагинов") {
             when {
                 expression {
-                    return !MyGlobal.appConfigureSh.isEmpty()
+                    return MyGlobal.pluginsCount > 0 && !MyGlobal.pluginActionShPath.isEmpty()
                 }
             }
             steps {
                 script {
-                    Shell.sh(MyGlobal.appConfigureSh)
+                    Shell.echo("Настройка плагинов")
+                    Shell.sh(readFile(MyGlobal.pluginActionShPath))
+                }
+            }
+        }
+        stage("Окончательная настройка дистрибутива") {
+            when {
+                expression {
+                    return !MyGlobal.appConfigureShPath.isEmpty()
+                }
+            }
+            steps {
+                script {
+                    Shell.echo("Окончательная настройка дистрибутива")
+                    Shell.sh(readFile(MyGlobal.appConfigureShPath))
                 }
             }
         }
