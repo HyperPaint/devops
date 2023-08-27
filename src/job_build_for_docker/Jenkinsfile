@@ -803,16 +803,14 @@ pipeline {
             }
             steps {
                 script {
-                    String imageExportedName = imageName.replace("/", "-").replace(":", "-")
-                    String imageExportedFullName = imageNameVersion.replace("/", "-").replace(":", "-")
                     // Удаление прошлой сборки. Расширяется только без кавычек
-                    if (Shell.shGetStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
-                        Shell.sh("rm -f ${imageExportedName}:*.tar")
+                    if (Shell.shGetStatus("[[ -f ${MyGlobal.imageName}:*.tar ]]")) {
+                        Shell.sh("rm -f ${MyGlobal.imageName}:*.tar")
                     }
                     // Экспорт
                     withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
-                            Docker.save(imageNameVersion, "${imageExportedFullName}.tar")
+                            Docker.save(MyGlobal.getArtifactFullName(), "${MyGlobal.getArtifactFullName().replace("/", "-").replace(":", "-").replace(".", "-")}.tar")
                         })
                     }
                 }
