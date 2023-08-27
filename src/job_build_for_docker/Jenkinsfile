@@ -52,7 +52,7 @@ class MyGlobal {
     /** URL на страницу с релизами или дистрибутив */
     static String appUrl = null
     /** Инвертировать список ссылок */
-    static Boolean appUrlReverse = null
+    static Boolean appUrlListReverse = null
     /** Количество регулярных выражений для отбора ссылок */
     static Integer appDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
@@ -64,7 +64,7 @@ class MyGlobal {
     /** Количество плагинов */
     static Integer themesCount = null
     /** Инвертировать список ссылок */
-    static Boolean themeUrlReverse = null
+    static Boolean themeUrlListReverse = null
     /** Количество регулярных выражений для отбора ссылок */
     static Integer themeDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
@@ -74,7 +74,7 @@ class MyGlobal {
     /** Количество плагинов */
     static Integer pluginsCount = null
     /** Инвертировать список ссылок */
-    static Boolean pluginUrlReverse = null
+    static Boolean pluginUrlListReverse = null
     /** Количество регулярных выражений для отбора ссылок */
     static Integer pluginDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
@@ -299,20 +299,20 @@ pipeline {
                     MyGlobal.imageName = env.image_name
 
                     MyGlobal.appUrl = env.app_url
-                    MyGlobal.appUrlReverse = env.app_url_reverse.toBoolean()
+                    MyGlobal.appUrlListReverse = env.app_url_list_reverse.toBoolean()
                     MyGlobal.appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
                     MyGlobal.appActionShPath = env.app_action_sh_path
                     MyGlobal.appConfigureShPath = env.app_configure_sh_path
 
                     MyGlobal.themesDirectory = env.themes_directory
                     MyGlobal.themesCount = env.themes_count.toInteger()
-                    MyGlobal.themeUrlReverse = env.theme_url_reverse.toBoolean()
+                    MyGlobal.themeUrlListReverse = env.theme_url_list_reverse.toBoolean()
                     MyGlobal.themeDistributiveUrlRegexCount = env.theme_distributive_url_regex_count.toInteger()
                     MyGlobal.themeActionShPath = env.theme_action_sh_path
 
                     MyGlobal.pluginsDirectory = env.plugins_directory
                     MyGlobal.pluginsCount = env.plugins_count.toInteger()
-                    MyGlobal.pluginUrlReverse = env.plugin_url_reverse.toBoolean()
+                    MyGlobal.pluginUrlListReverse = env.plugin_url_list_reverse.toBoolean()
                     MyGlobal.pluginDistributiveUrlRegexCount = env.plugin_distributive_url_regex_count.toInteger()
                     MyGlobal.pluginActionShPath = env.plugin_action_sh_path
 
@@ -401,11 +401,11 @@ pipeline {
                         Shell.echo(String.format(foundEnvString, "app_url"))
                     }
 
-                    if (MyGlobal.appUrlReverse == null) {
+                    if (MyGlobal.appUrlListReverse == null) {
                         appUrlReverse = false
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_url_reverse", MyGlobal.appUrlReverse))
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_url_list_reverse", MyGlobal.appUrlListReverse))
                     } else {
-                        Shell.echo(String.format(foundEnvString, "app_url_reverse"))
+                        Shell.echo(String.format(foundEnvString, "app_url_list_reverse"))
                     }
 
                     if (MyGlobal.appDistributiveUrlRegexCount == null) {
@@ -458,11 +458,11 @@ pipeline {
                                 }
                             }
 
-                            if (MyGlobal.themeUrlReverse == null) {
+                            if (MyGlobal.themeUrlListReverse == null) {
                                 themeUrlReverse = false
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_url_reverse", MyGlobal.themeUrlReverse))
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "theme_url_list_reverse", MyGlobal.themeUrlListReverse))
                             } else {
-                                Shell.echo(String.format(foundEnvString, "theme_url_reverse"))
+                                Shell.echo(String.format(foundEnvString, "theme_url_list_reverse"))
                             }
 
                             if (MyGlobal.themeDistributiveUrlRegexCount == null) {
@@ -510,11 +510,11 @@ pipeline {
                                 }
                             }
 
-                            if (MyGlobal.pluginUrlReverse == null) {
+                            if (MyGlobal.pluginUrlListReverse == null) {
                                 pluginUrlReverse = false
-                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_url_reverse", MyGlobal.pluginUrlReverse))
+                                Shell.echo(String.format(notFoundEnvStringSetDefault, "plugin_url_list_reverse", MyGlobal.pluginUrlListReverse))
                             } else {
-                                Shell.echo(String.format(foundEnvString, "plugin_url_reverse"))
+                                Shell.echo(String.format(foundEnvString, "plugin_url_list_reverse"))
                             }
 
                             if (MyGlobal.pluginDistributiveUrlRegexCount == null) {
@@ -569,7 +569,7 @@ pipeline {
                         for (int regexIndex = 0; regexIndex < MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
                             urlRegexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
                         }
-                        String tmp = getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory, true)
+                        String tmp = getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.appUrlListReverse, MyGlobal.buildDirectory, true)
                         MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
                     }
 
@@ -627,7 +627,7 @@ pipeline {
                             for (int regexIndex = 0; regexIndex < MyGlobal.themeDistributiveUrlRegexCount; regexIndex++) {
                                 urlRegexArray[regexIndex] = env["theme_distributive_url_regex${regexIndex+1}"]
                             }
-                            getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.themeUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/", false)
+                            getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.themeUrlListReverse, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/", false)
                         }
 
                         Runnable getDistributiveRunnable = {
@@ -684,7 +684,7 @@ pipeline {
                             for (int regexIndex = 0; regexIndex < MyGlobal.pluginDistributiveUrlRegexCount; regexIndex++) {
                                 urlRegexArray[regexIndex] = env["plugin_distributive_url_regex${regexIndex+1}"]
                             }
-                            getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.pluginUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/", false)
+                            getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.pluginUrlListReverse, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/", false)
                         }
 
                         Runnable getDistributiveRunnable = {
