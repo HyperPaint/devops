@@ -1,6 +1,5 @@
 package job_build_for_docker
 
-import groovyjarjarantlr4.v4.runtime.misc.Nullable
 import hyperpaint.util.Docker
 import hyperpaint.util.DockerCompose
 @Library("devops@job_build_for_docker")
@@ -112,7 +111,7 @@ MyGlobal.jenkins = this
  * Отобрать среди них те, что подходят по регулярным выражениям и уникальные.
  * При необходимости инвертировать список ссылок.
  * Если ссылок несколько, то запросить ввод, выбрать дистрибутив, скачать его и распаковать.
- * @param artifactName Название артефакта. Используется при сохранении и переиспользовании страницы релизов. Должно быть указано уникальное значение, включая null
+ * @param artifactName Название артефакта. Используется при сохранении и переиспользовании страницы релизов. Должно быть указано уникальное значение, включая null. @Nullable
  * @param url URL страницы с ссылками на релизы. Может быть указан http или https
  * @param urlRegexArray Массив регулярных выражений для отбора ссылок на релизы со страницы с релизами
  * @param urlListReverse Инвертировать список отобранных ссылок со страницы с релизами
@@ -120,7 +119,7 @@ MyGlobal.jenkins = this
  * @param deleteDestinationDirectoryIfExists Очистить директорию, в которую распаковать дистрибутив
  * @return Название файла дистрибутива
  */
-static String getReleasesPage(@Nullable String artifactName, String url, String[] urlRegexArray, Boolean urlListReverse, String unarchiveDestination, Boolean deleteDestinationDirectoryIfExists) {
+static String getReleasesPage(String artifactName, String url, String[] urlRegexArray, Boolean urlListReverse, String unarchiveDestination, Boolean deleteDestinationDirectoryIfExists) {
     /* Определиться с названием страницы релизов */
     String releasesHtmlFile
     if (Objects.nonNull(artifactName)) {
@@ -215,13 +214,13 @@ static String getReleasesPage(@Nullable String artifactName, String url, String[
 
 /**
  * Скачать дистрибутив и распаковать.
- * @param artifactName Название артефакта с расширением файла. Используется при сохранении и переиспользовании файла артефакта
+ * @param artifactName Название артефакта с расширением файла. Используется при сохранении и переиспользовании файла артефакта. @Nullable
  * @param url URL на страницу с релизами или дистрибутив
  * @param unarchiveDestination Директория, в которую распаковать дистрибутив
  * @param deleteDestinationDirectoryIfExists Очистить директорию, в которую распаковать дистрибутив
  * @return Название файла дистрибутива
  */
-static String getDistributive(@Nullable String artifactName, String url, String unarchiveDestination, Boolean deleteDestinationDirectoryIfExists) {
+static String getDistributive(String artifactName, String url, String unarchiveDestination, Boolean deleteDestinationDirectoryIfExists) {
     String downloadUrl = url
     String fileName
     if (Objects.nonNull(artifactName)) {
