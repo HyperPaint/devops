@@ -597,7 +597,7 @@ pipeline {
             steps {
                 script {
                     Shell.echo("Предварительная настройка дистрибутива")
-                    Shell.sh(readFile(MyGlobal.appActionShPath))
+                    Shell.sh("cd src/job_build_for_docker/${MyGlobal.buildDirectory}" + "\n" + readFile(MyGlobal.appActionShPath))
                 }
             }
         }
@@ -654,7 +654,7 @@ pipeline {
             steps {
                 script {
                     Shell.echo("Настройка тем")
-                    Shell.sh(readFile(MyGlobal.themeActionShPath))
+                    Shell.sh("cd src/job_build_for_docker/${MyGlobal.buildDirectory}" + "\n" + readFile(MyGlobal.themeActionShPath))
                 }
             }
         }
@@ -711,7 +711,7 @@ pipeline {
             steps {
                 script {
                     Shell.echo("Настройка плагинов")
-                    Shell.sh(readFile(MyGlobal.pluginActionShPath))
+                    Shell.sh("cd src/job_build_for_docker/${MyGlobal.buildDirectory}" + "\n" + readFile(MyGlobal.pluginActionShPath))
                 }
             }
         }
@@ -724,7 +724,7 @@ pipeline {
             steps {
                 script {
                     Shell.echo("Окончательная настройка дистрибутива")
-                    Shell.sh(readFile(MyGlobal.appConfigureShPath))
+                    Shell.sh("cd src/job_build_for_docker/${MyGlobal.buildDirectory}" + "\n" + readFile(MyGlobal.appConfigureShPath))
                 }
             }
         }
