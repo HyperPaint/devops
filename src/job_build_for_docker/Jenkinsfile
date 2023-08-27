@@ -1,6 +1,8 @@
 package job_build_for_docker
 
+import groovyjarjarantlr4.v4.runtime.misc.Nullable
 import hyperpaint.util.Docker
+import hyperpaint.util.DockerCompose
 @Library("devops@job_build_for_docker")
 import hyperpaint.util.Regex
 import hyperpaint.util.Shell
@@ -11,7 +13,7 @@ Shell.setJenkins(this)
 class MyGlobal {
     static def jenkins = null
 
-    /* Получение параметров, проверка и назначение значений по-умолчанию */
+    /* Параметры, назначение значений по-умолчанию */
     /** Выбирать последние версии автоматически */
     static Boolean useLatestVersion = null
     static Boolean useLatestVersionDefault = false
@@ -37,14 +39,16 @@ class MyGlobal {
     static Boolean deleteImageDefault = false
     static String deleteImageDescription = "Удалить образ"
 
-    /* Получение переменных окружения */
+    /* Переменные окружения */
     static String hostCredentials = null
     static String sshCredentials = null
     static String dockerComposeProjectDirectory = null
     static String dockerResourcesDirectory = null
 
-    /** Docker image name */
+    /** Docker image name - текущий образ*/
     static String imageName = null
+    /** Docker image name latest - предыдущий образ */
+    static String imageNameLatest = null
 
     /** URL на страницу с релизами или дистрибутив */
     static String appUrl = null
@@ -81,8 +85,21 @@ class MyGlobal {
     static int cacheLifetime = 86400
     static String buildDirectory = "build-directory"
     static String artifactNameRegex = "[\\?\\&]artifact_name=([A-Za-z0-9\\-_\\.]+)"
+    static String artifactNameAlternativeRegex = ".+\\/(.+)(\\/){0,1}(.*){0,1}\$"
     static String releasesPageRegex = "[\\?\\&]is_releases_page=1"
     static String distributiveRegex = "[\\?\\&]is_distributive=1"
+    static String aHrefRegex = "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.:\\/]+)\"[^<>]*>"
+    static String relativeUrlRegex = "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$"
+
+    /* Глобальные переменные */
+    static String artifactName = imageName
+    static String artifactVersion = null
+    static String artifactBuildVersion = env.BUILD_NUMBER
+
+    /* Глобальные функции */
+    static String getArtifactFullName() {
+        return "${artifactName}:${artifactVersion}-${artifactBuildVersion}"
+    }
 }
 
 MyGlobal.jenkins = this
@@ -95,28 +112,38 @@ MyGlobal.jenkins = this
  * Отобрать среди них те, что подходят по регулярным выражениям и уникальные.
  * При необходимости инвертировать список ссылок.
  * Если ссылок несколько, то запросить ввод, выбрать дистрибутив, скачать его и распаковать.
- * @param artifactFileName Название файла артефакта
- * @param url URL на страницу с релизами или дистрибутив
- * @param regexArray Массив регулярных выражений для отбора ссылок
- * @param urlReverse Инвертировать список ссылок
- * @param destination Директория, в которую распаковать дистрибутив
- * @param deleteDestinationDirectoryIfExists Удалить директорию, в которую распаковать дистрибутив
+ * @param artifactName Название артефакта. Используется при сохранении и переиспользовании страницы релизов. Должно быть указано уникальное значение, включая null
+ * @param url URL страницы с ссылками на релизы. Может быть указан http или https
+ * @param urlRegexArray Массив регулярных выражений для отбора ссылок на релизы со страницы с релизами
+ * @param urlListReverse Инвертировать список отобранных ссылок со страницы с релизами
+ * @param unarchiveDestination Директория, в которую распаковать дистрибутив
+ * @param deleteDestinationDirectoryIfExists Очистить директорию, в которую распаковать дистрибутив
+ * @return Название файла дистрибутива
  */
-static void releasesPage(String artifactFileName, String url, String[] regexArray, Boolean urlReverse, String destination, Boolean deleteDestinationDirectoryIfExists = false) {
-    String releasesHtmlFileName
-    if (artifactFileName == null) releasesHtmlFileName = "releases.html" else releasesHtmlFileName = "releases-${artifactFileName}.html"
-    if (MyGlobal.useCacheFile) Util.downloadFile(url, releasesHtmlFileName, MyGlobal.cacheLifetime) else Util.downloadFile(url, releasesHtmlFileName, -1)
+static String getReleasesPage(@Nullable String artifactName, String url, String[] urlRegexArray, Boolean urlListReverse, String unarchiveDestination, Boolean deleteDestinationDirectoryIfExists) {
+    /* Определиться с названием страницы релизов */
+    String releasesHtmlFile
+    if (Objects.nonNull(artifactName)) {
+        releasesHtmlFile = "releases-${artifactName}.html"
+    } else {
+        releasesHtmlFile = "releases.html"
+    }
+    if (MyGlobal.useCacheFile) {
+        Util.downloadFile(url, releasesHtmlFile, MyGlobal.cacheLifetime)
+    } else {
+        Util.downloadFile(url, releasesHtmlFile, -1)
+    }
 
     /* Найти на странице с релизами все ссылки href с тегом <a> */
-    String releasesHtml = MyGlobal.jenkins.readFile(releasesHtmlFileName)
-    List<String> urlsList = Regex.groupAll(releasesHtml, "<a[A-Za-z0-9\\-_\\.\\s]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.:\\/]+)\"[^<>]*>")
+    String releasesHtml = MyGlobal.jenkins.readFile(releasesHtmlFile)
+    List<String> urlsList = Regex.groupAll(releasesHtml, MyGlobal.aHrefRegex)
 
     /* Преобразование относительных ссылок в абсолютные */
     Shell.echo("Преобразовываю относительные ссылки в абсолютные")
     List<String> absoluteUrlsList = new ArrayList<>()
     for (int urlIndex = 0; urlIndex < urlsList.size(); urlIndex++) {
         String currentUrl = urlsList.get(urlIndex)
-        if (Regex.find(currentUrl, "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$")) {
+        if (Regex.find(currentUrl, MyGlobal.relativeUrlRegex)) {
             /* Относительная ссылка */
             absoluteUrlsList.add(url + currentUrl)
         } else {
@@ -127,13 +154,14 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
 
     /* Отобрать только те ссылки, которые подходят по регулярному выражению */
     Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
+    /* Переиспользую список */
     urlsList.clear()
     for (int urlIndex = 0; urlIndex < absoluteUrlsList.size(); urlIndex++) {
         String currentUrl = absoluteUrlsList.get(urlIndex)
 
         Boolean success = true
-        for (int regexIndex = 0; regexIndex < regexArray.size(); regexIndex++) {
-            if (!Regex.find(currentUrl, regexArray[regexIndex])) {
+        for (int regexIndex = 0; regexIndex < urlRegexArray.size(); regexIndex++) {
+            if (!Regex.find(currentUrl, urlRegexArray[regexIndex])) {
                 success = false
                 break
             }
@@ -149,7 +177,7 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
     }
 
     /* Инвертирование списка */
-    if (urlReverse) {
+    if (urlListReverse) {
         Shell.echo("Инвертирую список")
         urlsList = urlsList.reverse()
     }
@@ -171,32 +199,49 @@ static void releasesPage(String artifactFileName, String url, String[] regexArra
         }
     }
 
-    /* Скачать дистрибутив */
-    String fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(\\?.*){0,1}\$")
-    if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
-    Util.unarchiveFile(fileName, destination, deleteDestinationDirectoryIfExists)
+    String fileName = Regex.group(downloadUrl, MyGlobal.artifactNameAlternativeRegex)
+    /* Скачать */
+    if (MyGlobal.useCacheFile) {
+        Util.downloadFile(downloadUrl, fileName)
+    } else {
+        Util.downloadFile(downloadUrl, fileName, -1)
+    }
+
+    /* Распаковать */
+    Util.unarchiveFile(fileName, unarchiveDestination, deleteDestinationDirectoryIfExists)
+
+    return fileName
 }
 
 /**
  * Скачать дистрибутив и распаковать.
- * @param isArtifactFileNameDefined Название файла артефакта задано
+ * @param artifactName Название артефакта с расширением файла. Используется при сохранении и переиспользовании файла артефакта
  * @param url URL на страницу с релизами или дистрибутив
- * @param destination Директория, в которую распаковать дистрибутив
- * @param deleteDestinationDirectoryIfExists Удалить директорию, в которую распаковать дистрибутив
+ * @param unarchiveDestination Директория, в которую распаковать дистрибутив
+ * @param deleteDestinationDirectoryIfExists Очистить директорию, в которую распаковать дистрибутив
+ * @return Название файла дистрибутива
  */
-static void distributive(Boolean isArtifactFileNameDefined, String url, String destination, Boolean deleteDestinationDirectoryIfExists = false) {
-    /* Скачать дистрибутив */
+static String getDistributive(@Nullable String artifactName, String url, String unarchiveDestination, Boolean deleteDestinationDirectoryIfExists) {
     String downloadUrl = url
     String fileName
-    if (isArtifactFileNameDefined) {
-        fileName = Regex.group(downloadUrl, "[\\?\\&]artifact_file_name=([A-Za-z0-9\\-_\\.])")
+    if (Objects.nonNull(artifactName)) {
+        fileName = artifactName
     } else {
-        fileName = Regex.group(downloadUrl, ".+\\/(.+)(\\/){0,1}(\\?.*){0,1}\$")
+        fileName = Regex.group(downloadUrl, MyGlobal.artifactNameAlternativeRegex)
     }
-    if (MyGlobal.useCacheFile) Util.downloadFile(downloadUrl, fileName) else Util.downloadFile(downloadUrl, fileName, -1)
-    Util.unarchiveFile(fileName, destination, deleteDestinationDirectoryIfExists)
+    /* Скачать */
+    if (MyGlobal.useCacheFile) {
+        Util.downloadFile(downloadUrl, fileName)
+    } else {
+        Util.downloadFile(downloadUrl, fileName, -1)
+    }
+    /* Распаковать */
+    Util.unarchiveFile(fileName, unarchiveDestination, deleteDestinationDirectoryIfExists)
+
+    return fileName
 }
 
+/* Вывод информации */
 static void isReleasesPageEcho(String url, Boolean isReleasesPage, Boolean isArtifactFileNameDefined) {
     if (isReleasesPage) {
         if (isArtifactFileNameDefined) {
@@ -207,6 +252,7 @@ static void isReleasesPageEcho(String url, Boolean isReleasesPage, Boolean isArt
     }
 }
 
+/* Вывод информации */
 static void isDistributiveEcho(String url, Boolean isDistributive, Boolean isReleasesPage, Boolean isArtifactFileNameDefined) {
     if (isDistributive && !isReleasesPage) {
         if (isArtifactFileNameDefined) {
@@ -503,26 +549,38 @@ pipeline {
             steps {
                 script {
                     /* Распарсить параметры из ссылки */
-                    Boolean isArtifactNameDefined = Regex.find(MyGlobal.appUrl, MyGlobal.artifactNameRegex)
-                    Boolean isReleasesPage = Regex.find(MyGlobal.appUrl, MyGlobal.releasesPageRegex)
-                    isReleasesPageEcho(MyGlobal.appUrl, isReleasesPage, isArtifactNameDefined)
-                    Boolean isDistributive = Regex.find(MyGlobal.appUrl, MyGlobal.distributiveRegex)
-                    isDistributiveEcho(MyGlobal.appUrl, isDistributive, isReleasesPage, isArtifactNameDefined)
+                    String url = MyGlobal.appUrl
 
-                    Runnable releasesPageRunnable = {
-                        String[] regexArray = new String[MyGlobal.appDistributiveUrlRegexCount]
+                    Boolean isArtifactNameDefined = Regex.find(url, MyGlobal.artifactNameRegex)
+                    String artifactName = null
+                    if (isArtifactNameDefined) {
+                        artifactName = Regex.group(url, MyGlobal.artifactNameRegex)
+                    }
+                    Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
+                    isReleasesPageEcho(url, isReleasesPage, isArtifactNameDefined)
+                    Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
+                    isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactNameDefined)
+
+                    Runnable getReleasesPageRunnable = {
+                        String[] urlRegexArray = new String[MyGlobal.appDistributiveUrlRegexCount]
                         for (int regexIndex = 0; regexIndex < MyGlobal.appDistributiveUrlRegexCount; regexIndex++) {
-                            regexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
+                            urlRegexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
                         }
-                        releasesPage(null, MyGlobal.appUrl, regexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory, true)
+                        String tmp = getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.appUrlReverse, MyGlobal.buildDirectory, true)
+                        MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
+                    }
+
+                    Runnable getDistributiveRunnable = {
+                        String tmp = getDistributive(artifactName, url, MyGlobal.buildDirectory, true)
+                        MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
                     }
 
                     if (isReleasesPage) {
-                        releasesPageRunnable.run()
+                        getReleasesPageRunnable.run()
                     } else if (isDistributive) {
-                        distributive(isArtifactNameDefined, MyGlobal.appUrl, MyGlobal.buildDirectory, true)
+                        getDistributiveRunnable.run()
                     } else {
-                        releasesPageRunnable.run()
+                        getReleasesPageRunnable.run()
                     }
                 }
             }
@@ -552,26 +610,33 @@ pipeline {
                         String url = env["theme_url${theme}"]
 
                         Boolean isArtifactNameDefined = Regex.find(url, MyGlobal.artifactNameRegex)
+                        String artifactName = null
+                        if (isArtifactNameDefined) {
+                            artifactName = Regex.group(url, MyGlobal.artifactNameRegex)
+                        }
                         Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
                         isReleasesPageEcho(url, isReleasesPage, isArtifactNameDefined)
                         Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
                         isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactNameDefined)
 
-                        Runnable releasesPageRunnable = {
-                            String artifactFileName = Regex.group(url, MyGlobal.artifactNameRegex)
-                            String[] regexArray = new String[MyGlobal.themeDistributiveUrlRegexCount]
+                        Runnable getReleasesPageRunnable = {
+                            String[] urlRegexArray = new String[MyGlobal.themeDistributiveUrlRegexCount]
                             for (int regexIndex = 0; regexIndex < MyGlobal.themeDistributiveUrlRegexCount; regexIndex++) {
-                                regexArray[regexIndex] = env["theme_distributive_url_regex${regexIndex+1}"]
+                                urlRegexArray[regexIndex] = env["theme_distributive_url_regex${regexIndex+1}"]
                             }
-                            releasesPage(artifactFileName, url, regexArray, MyGlobal.themeUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
+                            getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.themeUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/", false)
+                        }
+
+                        Runnable getDistributiveRunnable = {
+                            getDistributive(artifactName, url, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/", false)
                         }
 
                         if (isReleasesPage) {
-                            releasesPageRunnable.run()
+                            getReleasesPageRunnable.run()
                         } else if (isDistributive) {
-                            distributive(isArtifactNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.themesDirectory}/")
+                            getDistributiveRunnable.run()
                         } else {
-                            releasesPageRunnable.run()
+                            getReleasesPageRunnable.run()
                         }
                     }
                 }
@@ -602,26 +667,33 @@ pipeline {
                         String url = env["plugin_url${plugin}"]
 
                         Boolean isArtifactNameDefined = Regex.find(url, MyGlobal.artifactNameRegex)
+                        String artifactName = null
+                        if (isArtifactNameDefined) {
+                            artifactName = Regex.group(url, MyGlobal.artifactNameRegex)
+                        }
                         Boolean isReleasesPage = Regex.find(url, MyGlobal.releasesPageRegex)
                         isReleasesPageEcho(url, isReleasesPage, isArtifactNameDefined)
                         Boolean isDistributive = Regex.find(url, MyGlobal.distributiveRegex)
                         isDistributiveEcho(url, isDistributive, isReleasesPage, isArtifactNameDefined)
 
-                        Runnable releasesPageRunnable = {
-                            String artifactFileName = Regex.group(url, MyGlobal.artifactNameRegex)
-                            String[] regexArray = new String[MyGlobal.pluginDistributiveUrlRegexCount]
+                        Runnable getReleasesPageRunnable = {
+                            String[] urlRegexArray = new String[MyGlobal.pluginDistributiveUrlRegexCount]
                             for (int regexIndex = 0; regexIndex < MyGlobal.pluginDistributiveUrlRegexCount; regexIndex++) {
-                                regexArray[regexIndex] = env["plugin_distributive_url_regex${regexIndex+1}"]
+                                urlRegexArray[regexIndex] = env["plugin_distributive_url_regex${regexIndex+1}"]
                             }
-                            releasesPage(artifactFileName, url, regexArray, MyGlobal.pluginUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/")
+                            getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.pluginUrlReverse, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/", false)
+                        }
+
+                        Runnable getDistributiveRunnable = {
+                            getDistributive(artifactName, url, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/", false)
                         }
 
                         if (isReleasesPage) {
-                            releasesPageRunnable.run()
+                            getReleasesPageRunnable.run()
                         } else if (isDistributive) {
-                            distributive(isArtifactNameDefined, url, "${MyGlobal.buildDirectory}/${MyGlobal.pluginsDirectory}/")
+                            getDistributiveRunnable.run()
                         } else {
-                            releasesPageRunnable.run()
+                            getReleasesPageRunnable.run()
                         }
                     }
                 }
@@ -653,23 +725,122 @@ pipeline {
                 }
             }
         }
-        /*
         stage("Docker Build") {
-            // docker build
+            steps {
+                script {
+                    Shell.sh("cp -r src/job_build_for_docker/${MyGlobal.dockerResourcesDirectory}/{*,.*} ${MyGlobal.buildDirectory}/")
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Docker.dockerConnect(env.host, env.user, env.id_rsa, {
+                            // Сохранить последнюю версию для возврата
+                            MyGlobal.imageNameLatest = Docker.images("${MyGlobal.imageName}:latest", true).trim()
+
+                            if (MyGlobal.useCacheDocker) {
+                                Docker.build(MyGlobal.buildDirectory, MyGlobal.getArtifactFullName(), true)
+                            } else {
+                                Docker.build(MyGlobal.buildDirectory, MyGlobal.getArtifactFullName(), false)
+                            }
+
+                            // Сделать версию последней
+                            Docker.tag(MyGlobal.getArtifactFullName(), "${MyGlobal.imageName}:latest")
+                        })
+                    }
+
+                    // Директория больше не нужна
+                    Shell.sh("rm -rf ${MyGlobal.buildDirectory}")
+                }
+            }
         }
         stage("Docker Deploy") {
-            // docker down
-            // docker config
-            // docker up
-            // docker life-check
-            // docker down
+            when {
+                expression {
+                    return MyGlobal.deployImage
+                }
+            }
+            steps {
+                script {
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                            // Проверка конфигурации и сохранение для скачивания
+                            String dockerComposeYml = DockerCompose.config(MyGlobal.dockerComposeProjectDirectory)
+                            writeFile(file: "docker-compose.yml", text: dockerComposeYml)
+
+                            // Развёртывание
+                            DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
+                            DockerCompose.up(MyGlobal.dockerComposeProjectDirectory)
+                            /* todo целевое решение - проверять 10 минут, пока healthcheck не станет успешным у всех контейнеров. Пока идёт проверка, можно выводить лог*/
+                            Thread.sleep(10000)
+                            Shell.echo(DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory))
+                            /* todo откат на старый образ, в случае неуспешного деплоя + удаление образа и отметка старого как latest + fail */
+                        })
+                    }
+                }
+            }
         }
-        stage("Экспортирую образ") {
-            // docker save
+        stage("Docker Down") {
+            when {
+                expression {
+                    return MyGlobal.deployImage
+                }
+            }
+            steps {
+                script {
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
+                            DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
+                        })
+                    }
+                }
+            }
         }
-        stage("Удаляю образ") {
-            // docker image rm
+        stage("Docker Save") {
+            when {
+                expression {
+                    return MyGlobal.exportImage
+                }
+            }
+            steps {
+                script {
+                    String imageExportedName = imageName.replace("/", "-").replace(":", "-")
+                    String imageExportedFullName = imageNameVersion.replace("/", "-").replace(":", "-")
+                    // Удаление прошлой сборки. Расширяется только без кавычек
+                    if (Shell.shGetStatus("[[ -f ${imageExportedName}:*.tar ]]")) {
+                        Shell.sh("rm -f ${imageExportedName}:*.tar")
+                    }
+                    // Экспорт
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Docker.dockerConnect(env.host, env.user, env.id_rsa, {
+                            Docker.save(imageNameVersion, "${imageExportedFullName}.tar")
+                        })
+                    }
+                }
+            }
         }
-        */
+        stage("Docker Remove Image") {
+            when {
+                expression {
+                    return MyGlobal.deleteImage
+                }
+            }
+            steps {
+                script {
+                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                        Docker.dockerConnect(env.host, env.user, env.id_rsa, {
+                            assert(MyGlobal.imageNameLatest instanceof String)
+                            if (MyGlobal.imageNameLatest == "") {
+                                // Прошлой сборки нет, это первая сборка
+                                // Удалить latest образ
+                                Docker.removeImage("${MyGlobal.imageName}:latest")
+                            } else {
+                                // Есть предпоследняя сборка
+                                // Откатить
+                                Docker.tag(MyGlobal.imageNameLatest, "${MyGlobal.imageName}:latest")
+                            }
+                            // Вернуть последнюю версию
+                            Docker.removeImage("${MyGlobal.getArtifactFullName()}")
+                        })
+                    }
+                }
+            }
+        }
     }
 }
