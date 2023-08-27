@@ -3,7 +3,7 @@
 file="wordpress/wp-config-sample.php"
 sed -i "s/<?php//g ${file}"
 mv "${file}" "${file}.buff"
-cat "wordpress/wp-config.php" "${file}.buff" | tee "${file}" 1>/dev/null
+cat "../src/job_wordpress_for_docker/wordpress/wordpress/wp-config.php" "${file}.buff" | tee "${file}" 1>/dev/null
 rm -f "${file}.buff"
 
 # Параметризовать файл - параметры базы данных

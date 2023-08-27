@@ -732,7 +732,7 @@ pipeline {
             steps {
                 script {
                     Shell.sh("cp -r src/job_build_for_docker/${MyGlobal.dockerResourcesDirectory}/ ${MyGlobal.buildDirectory}/")
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                    withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             // Сохранить последнюю версию для возврата
                             MyGlobal.imageNameLatest = Docker.images("${MyGlobal.imageName}:latest", true).trim()
@@ -761,7 +761,7 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                    withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Shell.sshConnect(env.host, env.user, env.id_rsa, {
                             // Проверка конфигурации и сохранение для скачивания
                             String dockerComposeYml = DockerCompose.config(MyGlobal.dockerComposeProjectDirectory)
@@ -787,7 +787,7 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                    withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Shell.sshConnect(env.host, env.user, env.id_rsa, {
                             DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
                         })
@@ -810,7 +810,7 @@ pipeline {
                         Shell.sh("rm -f ${imageExportedName}:*.tar")
                     }
                     // Экспорт
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                    withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             Docker.save(imageNameVersion, "${imageExportedFullName}.tar")
                         })
@@ -826,7 +826,7 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([string(credentialsId: hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
+                    withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             assert(MyGlobal.imageNameLatest instanceof String)
                             if (MyGlobal.imageNameLatest == "") {
