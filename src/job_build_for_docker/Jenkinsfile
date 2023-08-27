@@ -91,9 +91,9 @@ class MyGlobal {
     static String relativeUrlRegex = "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$"
 
     /* Глобальные переменные */
-    static String artifactName = imageName
+    static String artifactName = null
     static String artifactVersion = null
-    static String artifactBuildVersion = env.BUILD_NUMBER
+    static String artifactBuildVersion = null
 
     /* Глобальные функции */
     static String getArtifactFullName() {
@@ -541,6 +541,10 @@ pipeline {
                             }
                         }
                     }
+
+                    MyGlobal.artifactName = MyGlobal.imageName
+                    //MyGlobal.artifactVersion = null
+                    MyGlobal.artifactBuildVersion = env.BUILD_NUMBER
                 }
             }
         }
