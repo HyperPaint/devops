@@ -2,9 +2,9 @@
 # Добавить дополнительную конфигурацию в начало файла с заменой <?php
 file="wordpress/wp-config-sample.php"
 sed -i "s/<?php//g" "${file}"
-mv "${file}" "${file}.buff"
+mv -v "${file}" "${file}.buff" || exit 1
 cat "../src/job_build_for_docker/wordpress/wordpress/wp-config.php" "${file}.buff" | tee "${file}" 1>/dev/null
-rm -f "${file}.buff"
+rm -vf "${file}.buff" || exit 1
 
 # Параметризовать файл - параметры базы данных
 sed -i "s/define(\\s*'DB_NAME',\\s*'.*'\\s*);/define( 'DB_NAME', '\\\$DB_NAME' );/g" "${file}"

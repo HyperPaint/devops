@@ -769,73 +769,65 @@ pipeline {
                             writeFile(file: "docker-compose.yml", text: dockerComposeYml)
 
                             // Деплой
-                            DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
-                            DockerCompose.up(MyGlobal.dockerComposeProjectDirectory)
-                            List<String> containerIdList = new ArrayList<>()
-                            containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).trim().split("\n"))
-                            Boolean[] healthCheck = new Boolean[containerIdList.size()]
+                            try {
+                                DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
+                                DockerCompose.up(MyGlobal.dockerComposeProjectDirectory)
+                                List<String> containerIdList = new ArrayList<>()
+                                containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).trim().split("\n"))
+                                Boolean[] healthCheck = new Boolean[containerIdList.size()]
 
-                            // Проверка готовности
-                            boolean isReady = true
-                            // 10 секунд * 60 = 10 минут
-                            for (int count = 0; count < 60; count++) {
-                                Thread.sleep(10000)
-                                // Проставление статусов готовности
-                                for (int i = 0; i < healthCheck.size(); i++) {
-                                    String buff = null
-                                    try {
-                                        buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}").trim()
-                                    } catch (Exception ignored) { }
-                                    if (Objects.nonNull(buff)) {
-                                        // Проверка готовности настроена
-                                        healthCheck[i] = buff == "healthy"
-                                    } else {
-                                        // Проверка готовности не настроена
-                                        healthCheck[i] = true
+                                // Проверка готовности
+                                boolean isReady = true
+                                // 10 секунд * 60 = 10 минут
+                                for (int count = 0; count < 60; count++) {
+                                    Thread.sleep(10000)
+                                    // Проставление статусов готовности
+                                    for (int i = 0; i < healthCheck.size(); i++) {
+                                        String buff = null
+                                        try {
+                                            buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}").trim()
+                                        } catch (Exception ignored) { }
+                                        if (Objects.nonNull(buff)) {
+                                            // Проверка готовности настроена
+                                            healthCheck[i] = buff == "healthy"
+                                        } else {
+                                            // Проверка готовности не настроена
+                                            healthCheck[i] = true
+                                        }
+                                    }
+
+                                    // Проверка статусов готовности
+                                    isReady = true
+                                    for (int i = 0; i < healthCheck.size(); i++) {
+                                        isReady = isReady && healthCheck[i]
+                                        Shell.echo("${containerIdList.get(i)} ${healthCheck[i] ? "healthy" : "starting/unhealthy"}")
+                                    }
+
+                                    // Готово
+                                    if (isReady) {
+                                        Shell.echo("Развёртывание завершено успешно")
+                                        break
                                     }
                                 }
 
-                                // Проверка статусов готовности
-                                isReady = true
-                                for (int i = 0; i < healthCheck.size(); i++) {
-                                    isReady = isReady && healthCheck[i]
-                                    Shell.echo("${containerIdList.get(i)} ${healthCheck[i] ? "healthy" : "starting/unhealthy"}")
+                                // Вывести лог
+                                DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory)
+
+                                // Деплой не удался, не экспортировать, удалить
+                                if (!isReady) {
+                                    Shell.echo("Развёртывание завершено неуспешно")
+                                    currentBuild = "UNSTABLE"
+                                    Shell.echo("Выключаю этап ${MyGlobal.exportImageDescription}")
+                                    MyGlobal.exportImage = false
+                                    Shell.echo("Включаю этап ${MyGlobal.deleteImageDescription}")
+                                    MyGlobal.deleteImage = true
                                 }
-
-                                // Готово
-                                if (isReady) {
-                                    break
-                                }
-                            }
-
-                            // Вывести лог
-                            DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory)
-
-                            // Деплой не удался, не экспортировать, удалить
-                            if (!isReady) {
-                                Shell.echo("Развёртывание завершено неуспешно")
-                                Shell.echo("Выключаю этап ${MyGlobal.exportImageDescription}")
-                                MyGlobal.exportImage = false
-                                Shell.echo("Включаю этап ${MyGlobal.deleteImageDescription}")
-                                MyGlobal.deleteImage = true
+                            } catch (Exception e) {
+                                Shell.echo(e.toString())
                                 currentBuild = "UNSTABLE"
+                            } finally {
+                                DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
                             }
-                        })
-                    }
-                }
-            }
-        }
-        stage("Docker Down") {
-            when {
-                expression {
-                    return MyGlobal.deployImage
-                }
-            }
-            steps {
-                script {
-                    withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
-                        Shell.sshConnect(env.host, env.user, env.id_rsa, {
-                            DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
                         })
                     }
                 }
