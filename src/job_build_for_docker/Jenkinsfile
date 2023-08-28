@@ -588,7 +588,7 @@ pipeline {
                 }
             }
         }
-        stage("Предварительная настройка дистрибутива") {
+        stage("Настройка дистрибутива #1") {
             when {
                 expression {
                     return !MyGlobal.appActionShPath.isEmpty()
@@ -596,7 +596,7 @@ pipeline {
             }
             steps {
                 script {
-                    Shell.echo("Предварительная настройка дистрибутива")
+                    Shell.echo("Настройка дистрибутива #1")
                     Shell.sh("cd \"${MyGlobal.buildDirectory}\" && sh \"../src/job_build_for_docker/${MyGlobal.appActionShPath}\"")
                 }
             }
@@ -715,7 +715,7 @@ pipeline {
                 }
             }
         }
-        stage("Окончательная настройка дистрибутива") {
+        stage("Настройка дистрибутива #2") {
             when {
                 expression {
                     return !MyGlobal.appConfigureShPath.isEmpty()
@@ -723,7 +723,7 @@ pipeline {
             }
             steps {
                 script {
-                    Shell.echo("Окончательная настройка дистрибутива")
+                    Shell.echo("Настройка дистрибутива #2")
                     Shell.sh("cd \"${MyGlobal.buildDirectory}\" && sh \"../src/job_build_for_docker/${MyGlobal.appConfigureShPath}\"")
                 }
             }
@@ -767,13 +767,59 @@ pipeline {
                             String dockerComposeYml = DockerCompose.config(MyGlobal.dockerComposeProjectDirectory)
                             writeFile(file: "docker-compose.yml", text: dockerComposeYml)
 
-                            // Развёртывание
+                            // Деплой
                             DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
-                            DockerCompose.up(MyGlobal.dockerComposeProjectDirectory)
-                            /* todo целевое решение - проверять 10 минут, пока healthcheck не станет успешным у всех контейнеров. Пока идёт проверка, можно выводить лог*/
-                            Thread.sleep(10000)
+                            DockerCompose.create(MyGlobal.dockerComposeProjectDirectory)
+                            List<String> containerIdList = new ArrayList<>()
+                            containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).trim().split("\n"))
+                            Boolean[] healthCheck = new Boolean[containerIdList.size()]
+                            DockerCompose.start(MyGlobal.dockerComposeProjectDirectory)
+
+                            // Проверка готовности
+                            boolean isReady = true
+                            // 10 секунд * 60 = 10 минут
+                            for (int count = 0; count < 60; count++) {
+                                Thread.sleep(10000)
+                                // Проставление статусов готовности
+                                for (int i = 0; i < healthCheck.size(); i++) {
+                                    String buff = Docker.inspect(containerIdList.get(i), "container", "{{ .State.Health.Status }}")
+                                    if (buff.contains("map has no entry for key")) {
+                                        // Проверка готовности не настроена
+                                        healthCheck[i] = true
+                                    } else {
+                                        // Проверка готовности настроена
+                                        if (buff == "healthy") {
+                                            healthCheck[i] = true
+                                        } else {
+                                            healthCheck[i] = false
+                                        }
+                                    }
+                                }
+
+                                // Проверка статусов готовности
+                                isReady = true
+                                for (int i = 0; i < healthCheck.size(); i++) {
+                                    isReady *= healthCheck[i]
+                                }
+
+                                // Готово
+                                if (isReady) {
+                                    break
+                                }
+                            }
+
+                            // Вывести лог
                             Shell.echo(DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory))
-                            /* todo откат на старый образ, в случае неуспешного деплоя + удаление образа и отметка старого как latest + fail */
+
+                            // Деплой не удался, не экспортировать, удалить
+                            if (!isReady) {
+                                Shell.echo("Развёртывание завершено неуспешно")
+                                Shell.echo("Выключаю этап ${MyGlobal.exportImageDescription}")
+                                MyGlobal.exportImage = false
+                                Shell.echo("Включаю этап ${MyGlobal.deleteImageDescription}")
+                                MyGlobal.deleteImage = true
+                                currentBuild = "UNSTABLE"
+                            }
                         })
                     }
                 }
@@ -803,20 +849,18 @@ pipeline {
             }
             steps {
                 script {
-                    // Удаление прошлой сборки. Расширяется только без кавычек
-                    if (Shell.shGetStatus("[[ -f ${MyGlobal.imageName}:*.tar ]]")) {
-                        Shell.sh("rm -f ${MyGlobal.imageName}:*.tar")
-                    }
+                    // Удаление прошлой сборки
+                    Shell.sh("rm -f ${MyGlobal.imageName}*.tar")
                     // Экспорт
                     withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
-                            Docker.save(MyGlobal.getArtifactFullName(), "${MyGlobal.getArtifactFullName().replace("/", "-").replace(":", "-").replace(".", "-")}.tar")
+                            Docker.save(MyGlobal.getArtifactFullName(), "${MyGlobal.getArtifactFullName().replace("/", "-").replace(":", "-")}.tar")
                         })
                     }
                 }
             }
         }
-        stage("Docker Remove Image") {
+        stage("Docker Remove") {
             when {
                 expression {
                     return MyGlobal.deleteImage
