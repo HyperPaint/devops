@@ -799,6 +799,7 @@ pipeline {
                                 isReady = true
                                 for (int i = 0; i < healthCheck.size(); i++) {
                                     isReady = isReady && healthCheck[i]
+                                    Shell.echo("${containerIdList.get(i)} ${healthCheck[i] ? "healthy" : "starting/unhealthy"}")
                                 }
 
                                 // Готово
