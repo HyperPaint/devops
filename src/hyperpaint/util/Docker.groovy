@@ -88,15 +88,15 @@ final class Docker {
     static String inspect(String id, String type = null, String format = null) {
         if (Objects.nonNull(type)) {
             if (Objects.nonNull(format)) {
-                return Shell.shGetOutput("docker inspect \"${id}\" --type \"${type}\" --format \"${format}\"")
+                return Shell.shGetOutput("docker inspect \"${id}\" --type \"${type}\" --format \"${format}\" || exit 0")
             } else {
-                return Shell.shGetOutput("docker inspect \"${id}\" --type \"${type}\"")
+                return Shell.shGetOutput("docker inspect \"${id}\" --type \"${type}\" || exit 0")
             }
         } else {
             if (Objects.nonNull(format)) {
-                return Shell.shGetOutput("docker inspect \"${id}\" --format \"${format}\"")
+                return Shell.shGetOutput("docker inspect \"${id}\" --format \"${format}\" || exit 0")
             } else {
-                return Shell.shGetOutput("docker inspect \"${id}\"")
+                return Shell.shGetOutput("docker inspect \"${id}\" || exit 0")
             }
         }
 
