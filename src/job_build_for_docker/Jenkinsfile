@@ -783,24 +783,20 @@ pipeline {
                                 Thread.sleep(10000)
                                 // Проставление статусов готовности
                                 for (int i = 0; i < healthCheck.size(); i++) {
-                                    String buff = Docker.inspect(containerIdList.get(i), "container", "{{ .State.Health.Status }}")
+                                    String buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}")
                                     if (buff.contains("map has no entry for key")) {
                                         // Проверка готовности не настроена
                                         healthCheck[i] = true
                                     } else {
                                         // Проверка готовности настроена
-                                        if (buff == "healthy") {
-                                            healthCheck[i] = true
-                                        } else {
-                                            healthCheck[i] = false
-                                        }
+                                        healthCheck[i] = buff == "healthy"
                                     }
                                 }
 
                                 // Проверка статусов готовности
                                 isReady = true
                                 for (int i = 0; i < healthCheck.size(); i++) {
-                                    isReady *= healthCheck[i]
+                                    isReady = isReady && healthCheck[i]
                                 }
 
                                 // Готово

@@ -82,7 +82,7 @@ final class Docker {
      * {@code Example: container|image|node|network|secret|service|volume|task|plugin}
      * @param format Format output using a custom template: 'json': Print in JSON format 'TEMPLATE': Print output using the given Go template.
      * Refer to https://docs.docker.com/go/formatting/open_in_new for more information about formatting output with templates.
-     * Example: {@code {{ .State }}}
+     * Example: {@code {{.State}}}
      * @return Command output
      */
     static String inspect(String id, String type = null, String format = null) {
