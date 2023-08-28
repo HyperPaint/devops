@@ -772,7 +772,8 @@ pipeline {
                             DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
                             DockerCompose.create(MyGlobal.dockerComposeProjectDirectory)
                             List<String> containerIdList = new ArrayList<>()
-                            containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).trim().split("\n"))
+                            containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).split("\n"))
+                            containerIdList.remove("")
                             Boolean[] healthCheck = new Boolean[containerIdList.size()]
                             DockerCompose.start(MyGlobal.dockerComposeProjectDirectory)
 
@@ -806,7 +807,7 @@ pipeline {
                             }
 
                             // Вывести лог
-                            Shell.echo(DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory))
+                            DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory)
 
                             // Деплой не удался, не экспортировать, удалить
                             if (!isReady) {
