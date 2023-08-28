@@ -1,8 +1,8 @@
 package job_build_for_docker
 
+@Library("devops@job_build_for_docker")
 import hyperpaint.util.Docker
 import hyperpaint.util.DockerCompose
-@Library("devops@job_build_for_docker")
 import hyperpaint.util.Regex
 import hyperpaint.util.Shell
 import hyperpaint.util.Util
@@ -56,9 +56,9 @@ class MyGlobal {
     /** Количество регулярных выражений для отбора ссылок */
     static Integer appDistributiveUrlRegexCount = null
     /** sh скрипт, выполняемый после распаковки дистрибутива */
-    static String appActionShPath = null
+    static String appPreConfigureShPath = null
     /** sh скрипт, выполняемый перед сборкой образа */
-    static String appConfigureShPath = null
+    static String appPostConfigureShPath = null
 
     static String themesDirectory = null
     /** Количество плагинов */
@@ -302,8 +302,8 @@ pipeline {
                     MyGlobal.appUrl = env.app_url
                     MyGlobal.appUrlListReverse = env.app_url_list_reverse.toBoolean()
                     MyGlobal.appDistributiveUrlRegexCount = env.app_distributive_url_regex_count.toInteger()
-                    MyGlobal.appActionShPath = env.app_action_sh_path
-                    MyGlobal.appConfigureShPath = env.app_configure_sh_path
+                    MyGlobal.appPreConfigureShPath = env.app_pre_configure_sh_path
+                    MyGlobal.appPostConfigureShPath = env.app_post_configure_sh_path
 
                     MyGlobal.themesDirectory = env.themes_directory
                     MyGlobal.themesCount = env.themes_count.toInteger()
@@ -425,18 +425,18 @@ pipeline {
                         }
                     }
 
-                    if (MyGlobal.appActionShPath == null) {
-                        MyGlobal.appActionShPath = ""
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_action_sh_path", MyGlobal.appActionShPath))
+                    if (MyGlobal.appPreConfigureShPath == null) {
+                        MyGlobal.appPreConfigureShPath = ""
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_action_sh_path", MyGlobal.appPreConfigureShPath))
                     } else {
-                        Shell.echo(String.format(foundEnvString, "app_action_sh_path"))
+                        Shell.echo(String.format(foundEnvString, "app_pre_configure_sh_path"))
                     }
 
-                    if (MyGlobal.appConfigureShPath == null) {
-                        MyGlobal.appConfigureShPath = ""
-                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_configure_sh_path", MyGlobal.appConfigureShPath))
+                    if (MyGlobal.appPostConfigureShPath == null) {
+                        MyGlobal.appPostConfigureShPath = ""
+                        Shell.echo(String.format(notFoundEnvStringSetDefault, "app_configure_sh_path", MyGlobal.appPostConfigureShPath))
                     } else {
-                        Shell.echo(String.format(foundEnvString, "app_configure_sh_path"))
+                        Shell.echo(String.format(foundEnvString, "app_post_configure_sh_path"))
                     }
 
                     if (MyGlobal.themesCount == null) {
@@ -592,13 +592,13 @@ pipeline {
         stage("Настройка дистрибутива #1") {
             when {
                 expression {
-                    return !MyGlobal.appActionShPath.isEmpty()
+                    return !MyGlobal.appPreConfigureShPath.isEmpty()
                 }
             }
             steps {
                 script {
                     Shell.echo("Настройка дистрибутива #1")
-                    Shell.sh("cd \"${MyGlobal.buildDirectory}\" && sh \"../src/job_build_for_docker/${MyGlobal.appActionShPath}\"")
+                    Shell.sh("cd \"${MyGlobal.buildDirectory}\" && sh \"../src/job_build_for_docker/${MyGlobal.appPreConfigureShPath}\"")
                 }
             }
         }
@@ -719,13 +719,13 @@ pipeline {
         stage("Настройка дистрибутива #2") {
             when {
                 expression {
-                    return !MyGlobal.appConfigureShPath.isEmpty()
+                    return !MyGlobal.appPostConfigureShPath.isEmpty()
                 }
             }
             steps {
                 script {
                     Shell.echo("Настройка дистрибутива #2")
-                    Shell.sh("cd \"${MyGlobal.buildDirectory}\" && sh \"../src/job_build_for_docker/${MyGlobal.appConfigureShPath}\"")
+                    Shell.sh("cd \"${MyGlobal.buildDirectory}\" && sh \"../src/job_build_for_docker/${MyGlobal.appPostConfigureShPath}\"")
                 }
             }
         }
