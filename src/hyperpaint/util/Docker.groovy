@@ -73,8 +73,33 @@ final class Docker {
         return Shell.shGetOutput("docker info")
     }
 
-    static String inspect(String object) {
-        return Shell.shGetOutput("docker inspect ${object}")
+    /**
+     *
+     * @param id Identifier
+     * @param type The docker inspect command matches any type of object by either ID or name.
+     * In some cases multiple type of objects (for example, a container and a volume) exist with the same name, making the result ambiguous.
+     * To restrict docker inspect to a specific type of object, use the --type option.
+     * {@code Example: container|image|node|network|secret|service|volume|task|plugin}
+     * @param format Format output using a custom template: 'json': Print in JSON format 'TEMPLATE': Print output using the given Go template.
+     * Refer to https://docs.docker.com/go/formatting/open_in_new for more information about formatting output with templates.
+     * Example: {@code {{.State}}}
+     * @return Command output
+     */
+    static String inspect(String id, String type = null, String format = null) {
+        if (Objects.nonNull(type)) {
+            if (Objects.nonNull(format)) {
+                return Shell.shGetOutput("docker inspect \"${id}\" --type \"${type}\" --format \"${format}\"")
+            } else {
+                return Shell.shGetOutput("docker inspect \"${id}\" --type \"${type}\"")
+            }
+        } else {
+            if (Objects.nonNull(format)) {
+                return Shell.shGetOutput("docker inspect \"${id}\" --format \"${format}\"")
+            } else {
+                return Shell.shGetOutput("docker inspect \"${id}\"")
+            }
+        }
+
     }
 
     static boolean kill(String container) {
