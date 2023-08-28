@@ -784,7 +784,12 @@ pipeline {
                                 Thread.sleep(10000)
                                 // Проставление статусов готовности
                                 for (int i = 0; i < healthCheck.size(); i++) {
-                                    String buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}")
+                                    String buff = ""
+                                    try {
+                                        buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}")
+                                    } catch (Exception e) {
+                                        Shell.echo(e.toString())
+                                    }
                                     if (buff.contains("map has no entry for key")) {
                                         // Проверка готовности не настроена
                                         healthCheck[i] = true
