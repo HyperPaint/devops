@@ -134,6 +134,7 @@ static String getReleasesPage(String artifactName, String url, String[] urlRegex
     }
 
     /* Найти на странице с релизами все ссылки href с тегом <a> */
+    Shell.echo("Собираю ссылки со страницы")
     String releasesHtml = MyGlobal.jenkins.readFile(releasesHtmlFile)
     List<String> urlsList = Regex.groupAll(releasesHtml, MyGlobal.aHrefRegex)
 
@@ -152,7 +153,7 @@ static String getReleasesPage(String artifactName, String url, String[] urlRegex
     }
 
     /* Отобрать только те ссылки, которые подходят по регулярному выражению */
-    Shell.echo("Отбираю ссылки, которые подходят по регулярному выражению")
+    Shell.echo("Отбираю ссылки, подходящие по регулярному выражению")
     /* Переиспользую список */
     urlsList.clear()
     for (int urlIndex = 0; urlIndex < absoluteUrlsList.size(); urlIndex++) {
