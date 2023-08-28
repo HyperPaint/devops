@@ -786,7 +786,7 @@ pipeline {
                                 for (int i = 0; i < healthCheck.size(); i++) {
                                     String buff = null
                                     try {
-                                        buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}")
+                                        buff = Docker.inspect(containerIdList.get(i), "container", "{{.State.Health.Status}}").trim()
                                     } catch (Exception ignored) { }
                                     if (Objects.nonNull(buff)) {
                                         // Проверка готовности настроена
