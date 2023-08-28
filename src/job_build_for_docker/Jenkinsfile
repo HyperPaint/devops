@@ -770,12 +770,10 @@ pipeline {
 
                             // Деплой
                             DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
-                            DockerCompose.create(MyGlobal.dockerComposeProjectDirectory)
+                            DockerCompose.up(MyGlobal.dockerComposeProjectDirectory)
                             List<String> containerIdList = new ArrayList<>()
-                            containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).split("\n"))
-                            containerIdList.remove("")
+                            containerIdList.addAll(DockerCompose.listContainers(MyGlobal.dockerComposeProjectDirectory, true).trim().split("\n"))
                             Boolean[] healthCheck = new Boolean[containerIdList.size()]
-                            DockerCompose.start(MyGlobal.dockerComposeProjectDirectory)
 
                             // Проверка готовности
                             boolean isReady = true
