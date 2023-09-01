@@ -1,4 +1,5 @@
 #!/bin/sh
+
 # Добавить дополнительную конфигурацию в начало файла с заменой <?php
 file="wordpress/wp-config-sample.php"
 sed -i "s/<?php//g" "${file}"

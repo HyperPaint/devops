@@ -42,10 +42,10 @@ prepare_app() {
   log "Compile 'wp-config.php' from 'wp-config-sample.php'"
   # shellcheck disable=SC2016
   envsubst '$MY_WP_PROTOCOL $MY_WP_HOME $MY_WP_PORT $DB_NAME $DB_USER $DB_PASSWORD $DB_HOST $DB_CHARSET $DB_COLLATE $AUTH_KEY $SECURE_AUTH_KEY $LOGGED_IN_KEY $NONCE_KEY $AUTH_SALT $SECURE_AUTH_SALT $LOGGED_IN_SALT $NONCE_SALT' \
-    < /var/www/html/wp-config-sample.php \
-    > /var/www/html/wp-config.php && \
-    chown apache:apache /var/www/html/wp-config.php && \
-    chmod 754 /var/www/html/wp-config.php
+    < "/var/www/html/wp-config-sample.php" \
+    > "/var/www/html/wp-config.php" && \
+    chown apache:apache "/var/www/html/wp-config.php" && \
+    chmod 754 "/var/www/html/wp-config.php"
 
   # Apache fix
   log "Apache fix"

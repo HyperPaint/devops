@@ -36,10 +36,11 @@ RUN httpd -S
 
 EXPOSE 80
 
-# Если эти параметры указаны иначе установка будет завершаться с ошибкой
+# Если эти параметры указаны иначе, установка будет завершаться с ошибкой
 ENV MY_WP_PROTOCOL="http"
 ENV MY_WP_HOME=""
 
+# Обязательные, база данных
 ENV DB_NAME="database_name_here"
 ENV DB_USER="username_here"
 ENV DB_PASSWORD="password_here"
@@ -47,6 +48,7 @@ ENV DB_HOST="localhost"
 ENV DB_CHARSET="utf8mb4"
 ENV DB_COLLATE=""
 
+# Обязательные, ключи и соли
 ENV AUTH_KEY="put your unique phrase here"
 ENV SECURE_AUTH_KEY="put your unique phrase here"
 ENV LOGGED_IN_KEY="put your unique phrase here"
