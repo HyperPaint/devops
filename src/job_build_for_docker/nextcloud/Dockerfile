@@ -39,7 +39,7 @@ EXPOSE 80
 # https://docs.nextcloud.com/server/latest/admin_manual/configuration_server/config_sample_php_parameters.html
 # Обязательные
 ENV INSTANCE_ID="put your unique phrase here"
-ENV PASSWORD_SALT"put your unique phrase here"
+ENV PASSWORD_SALT="put your unique phrase here"
 ENV SECRET="put your unique phrase here"
 ENV TRUSTED_DOMAINS="['*']"
 ENV DATA_DIRECTORY="/var/www/html/data"
