@@ -60,8 +60,9 @@ prepare_app() {
     log "MEMCACHE_LOCAL is $MEMCACHE_LOCAL"
 
     # Сборка конфигурации
-    for file in /var/www/html/config/sample/*; do
-      log "Compile '/var/www/html/config/sample/config/$file' from '/var/www/html/config/sample/config/sample/$file'"
+    cd "/var/www/html/config/sample/" || error "Can't cd to /var/www/html/config/sample/"
+    for file in *; do
+      log "Compile '/var/www/html/config/$file' from '/var/www/html/config/sample/$file'"
       # shellcheck disable=SC2016
       envsubst '$INSTANCE_ID $PASSWORD_SALT $SECRET $TRUSTED_DOMAINS $DATA_DIRECTORY $DB_TYPE $DB_HOST $DB_NAME $DB_USER $DB_PASSWORD $DB_TABLE_PREFIX $DEFAULT_LANGUAGE $FORCE_LANGUAGE $DEFAULT_LOCALE $FORCE_LOCALE $KNOWLEDGE_BASE_ENABLED $ALLOW_USER_TO_CHANGE_DISPLAY_NAME $SKELETON_DIRECTORY $TEMPLATE_DIRECTORY $MAIL_DOMAIN $MAIL_FROM_ADDRESS $MAIL_SMTP_MODE $MAIL_SMTP_HOST $MAIL_SMTP_PORT $MAIL_SMTP_SECURE $MAIL_SMTP_AUTH $MAIL_SMTP_NAME $MAIL_SMTP_PASSWORD $OVERWRITE_HOST $OVERWRITE_PROTOCOL $OVERWRITE_WEBROOT $OVERWRITE_COND_ADDR $OVERWRITE_CLI_URL $MEMCACHE_LOCAL' \
         < "/var/www/html/config/sample/$file" \
@@ -79,18 +80,18 @@ prepare_app() {
           return 1
         fi
       else
-        error "Can't compile '/var/www/html/config/sample/config/$file' from '/var/www/html/config/sample/config/sample/$file'"
+        error "Can't compile '/var/www/html/config/$file' from '/var/www/html/config/sample/$file'"
         return 1
       fi
     done
 
     # Scan files
     log "Scanning user files"
-    php /var/www/html/occ files:scan --all && log "Scanning success" || error "Scanning error"
+    php /var/www/html/occ files:scan --all --quiet
 
     # Apache fix
     log "Apache fix"
-    rm -f /var/run/httpd/* > /dev/null 2>&1 && log "Apache fix success" || error "Apache fix error"
+    rm -f /var/run/httpd/* > /dev/null 2>&1
 
     ### Конец ###
     wait
