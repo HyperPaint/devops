@@ -5,7 +5,7 @@ RUN yum -y update && yum -y upgrade
 
 # Репозитории
 RUN rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
-	rpm -ivh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm && yum-config-manager --enable remi-php80
+    rpm -ivh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm && yum-config-manager --enable remi-php80
 
 # PHP
 RUN yum -y install php php-zip php-dom php-xml php-mbstring php-gd php-mysql php-pgsql php-fileinfo php-bz2 php-intl php-ldap php-smbclient php-ftp php-imap php-bcmath php-gmp php-exif php-apcu php-memcached php-redis php-imagick php-pcntl php-phar php-pcre php-ssh2 php-sockets php-process php-opcache
@@ -15,10 +15,10 @@ RUN yum -y install httpd wget curl openssl gettext
 
 # Настроить php
 RUN sed -i 's/memory_limit = 128M/memory_limit = 512M/g' /etc/php.ini && \
-	sed -i 's/post_max_size = 8M/post_max_size = 10G/g' /etc/php.ini && \ 
-	sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 10G/g' /etc/php.ini && \
-	sed -i 's/output_buffering = 4096/output_buffering = Off/g' /etc/php.ini && \
-	echo "apc.enable_cli = 1" >> /etc/php.ini
+    sed -i 's/post_max_size = 8M/post_max_size = 10G/g' /etc/php.ini && \
+    sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 10G/g' /etc/php.ini && \
+    sed -i 's/output_buffering = 4096/output_buffering = Off/g' /etc/php.ini && \
+    echo "apc.enable_cli = 1" >> /etc/php.ini
 	
 # Файлы
 COPY --chown=apache:apache --chmod=754 ./nextcloud/ /var/www/html/
