@@ -87,7 +87,18 @@ prepare_app() {
 
     # Scan files
     log "Scanning user files"
-    php /var/www/html/occ files:scan --all --quiet
+    php /var/www/html/occ files:scan --all
+    chown apache:apache "/var/www/html/config/config.php"
+    if [ ! $? ]; then
+      error "Can't chown /var/www/html/config/$file"
+      return 1
+    fi
+
+    chmod 754 "/var/www/html/config/config.php"
+    if [ ! $? ]; then
+      error "Can't chmod /var/www/html/config/$file"
+      return 1
+    fi
 
     # Apache fix
     log "Apache fix"
