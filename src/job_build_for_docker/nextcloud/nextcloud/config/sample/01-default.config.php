@@ -1,6 +1,6 @@
 <?php
 
-$overwrite_protocol = '$OVERWRITE_PROTOCOL'
+$overwrite_protocol = '$OVERWRITE_PROTOCOL';
 
 /** HTTPS */
 if ($overwrite_protocol == 'https') {
