@@ -1,6 +1,7 @@
 #!/bin/sh
 
-for file in nextcloud/themes/*; do
+cd "nextcloud/themes/" || exit 1
+for file in *; do
   if [ ! "$file" = "index.php" ]; then
     rm -rf "nextcloud/themes/$file"
     if [ $? ]; then
@@ -12,7 +13,10 @@ for file in nextcloud/themes/*; do
   fi
 done
 
-for file in nextcloud/apps/*; do
+cd "../../"
+
+cd "nextcloud/apps/" || exit 1
+for file in *; do
   if [ ! "$file" = "index.php" ]; then
     rm -rf "nextcloud/apps/$file"
     if [ $? ]; then
