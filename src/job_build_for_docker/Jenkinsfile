@@ -814,18 +814,14 @@ pipeline {
                                 // Вывести лог
                                 DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory)
 
-                                // Деплой не удался, не экспортировать, удалить
+                                // Деплой не удался
                                 if (!isReady) {
                                     Shell.echo("Развёртывание завершено неуспешно")
-                                    currentBuild = "UNSTABLE"
-                                    Shell.echo("Выключаю этап ${MyGlobal.exportImageDescription}")
-                                    MyGlobal.exportImage = false
-                                    Shell.echo("Включаю этап ${MyGlobal.deleteImageDescription}")
-                                    MyGlobal.deleteImage = true
+                                    currentBuild.result = "UNSTABLE"
                                 }
                             } catch (Exception e) {
                                 Shell.echo(e.toString())
-                                currentBuild = "UNSTABLE"
+                                currentBuild.result = "UNSTABLE"
                             } finally {
                                 DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
                             }
@@ -874,7 +870,7 @@ pipeline {
                                 Docker.tag(MyGlobal.imageNameLatest, MyGlobal.imageName)
                             }
                             // Вернуть последнюю версию
-                            Docker.removeImage("${MyGlobal.getArtifactFullName()}")
+                            Docker.removeImage(MyGlobal.getArtifactFullName())
                         })
                     }
                 }
