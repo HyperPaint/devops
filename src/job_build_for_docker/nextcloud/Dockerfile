@@ -67,9 +67,9 @@ ENV KNOWLEDGE_BASE_ENABLED=""
 # Allows users to change their display names on their personal pages
 ENV ALLOW_USER_TO_CHANGE_DISPLAY_NAME=""
 # The directory where the skeleton files are located
-ENV SKELETON_DIRECTORY="/var/www/html/core/skeleton"
+ENV SKELETON_DIRECTORY=""
 # The directory where the template files are located
-ENV TEMPLATE_DIRECTORY="/var/www/html/templates"
+ENV TEMPLATE_DIRECTORY=""
 
 # Дополнительные, почта
 ENV MAIL_DOMAIN=""
