@@ -1,28 +1,24 @@
 #!/bin/sh
 
-cd "nextcloud/themes/" || exit 1
-for file in *; do
+for file in nextcloud/themes/*; do
   if [ ! "$file" = "index.php" ]; then
-    rm -rf "nextcloud/themes/$file"
+    rm -rf "$file"
     if [ $? ]; then
-      echo "Removed nextcloud/themes/$file"
+      echo "Removed $file"
     else
-      echo "Can't remove nextcloud/themes/$file"
+      echo "Can't remove $file"
       exit 1
     fi
   fi
 done
 
-cd "../../"
-
-cd "nextcloud/apps/" || exit 1
-for file in *; do
+for file in nextcloud/apps/*; do
   if [ ! "$file" = "index.php" ]; then
-    rm -rf "nextcloud/apps/$file"
+    rm -rf "$file"
     if [ $? ]; then
-      echo "Removed nextcloud/apps/$file"
+      echo "Removed $file"
     else
-      echo "Can't remove nextcloud/apps/$file"
+      echo "Can't remove $file"
       exit 1
     fi
   fi
