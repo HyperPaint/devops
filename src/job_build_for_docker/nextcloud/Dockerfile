@@ -47,7 +47,7 @@ ENV SECRET="put_your_unique_phrase_here"
 ENV TRUSTED_DOMAINS="['*']"
 ENV DATA_DIRECTORY="/var/www/html/data"
 ENV VERSION=""
-ENV INSTALLED="false"
+ENV INSTALLED=""
 
 # Обязательные, база данных
 ENV DB_TYPE="sqlite3"
