@@ -46,6 +46,8 @@ ENV PASSWORD_SALT="put_your_unique_phrase_here"
 ENV SECRET="put_your_unique_phrase_here"
 ENV TRUSTED_DOMAINS="['*']"
 ENV DATA_DIRECTORY="/var/www/html/data"
+ENV VERSION=""
+ENV INSTALLED="false"
 
 # Обязательные, база данных
 ENV DB_TYPE="sqlite3"

@@ -24,6 +24,8 @@ prepare_app() {
     log "SECRET is $SECRET"
     log "TRUSTED_DOMAINS is $TRUSTED_DOMAINS"
     log "DATA_DIRECTORY is $DATA_DIRECTORY"
+    log "VERSION is $VERSION"
+    log "INSTALLED is $INSTALLED"
 
     log "DB_TYPE is $DB_TYPE"
     log "DB_HOST is $DB_HOST"
@@ -84,6 +86,18 @@ prepare_app() {
         return 1
       fi
     done
+
+    # Installed
+    if [ "$INSTALLED" = "true" ]; then
+      log "App is installed"
+      rm -f "/var/www/html/config/CAN_INSTALL"
+      if [ $? ]; then
+        log "Removed /var/www/html/config/CAN_INSTALL"
+      else
+        log "Can't remove /var/www/html/config/CAN_INSTALL"
+        return 1
+      fi
+    fi
 
     # Scan files
     log "Scanning user files"

@@ -14,4 +14,8 @@ $CONFIG = array (
     'secret' => '$SECRET',
     'trusted_domains' => $TRUSTED_DOMAINS,
     'datadirectory' => '$DATA_DIRECTORY',
+    'version' => '$VERSION',
+    'installed' => $INSTALLED,
 );
+
+
