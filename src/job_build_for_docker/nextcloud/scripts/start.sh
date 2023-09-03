@@ -88,7 +88,7 @@ prepare_app() {
     # Scan files
     log "Scanning user files"
     if [ ! -f "/var/www/html/config/CAN_INSTALL" ]; then
-      sudo -u apache "php /var/www/html/occ files:scan --all > /root/scripts/scan-files.log"
+      sudo -u apache php /var/www/html/occ files:scan --all > /root/scripts/scanning-user-files.log
       if [ ! $? ]; then
         error "Can't scan user files"
         #return 1
