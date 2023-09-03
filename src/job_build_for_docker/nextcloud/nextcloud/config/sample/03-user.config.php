@@ -4,6 +4,7 @@ $default_language = '$DEFAULT_LANGUAGE';
 $force_language = '$FORCE_LANGUAGE';
 $default_locale = '$DEFAULT_LOCALE';
 $force_locale = '$FORCE_LOCALE';
+$default_phone_region = '$DEFAULT_PHONE_REGION';
 $knowledge_base_enabled = '$KNOWLEDGE_BASE_ENABLED';
 $allow_user_to_change_display_name = '$ALLOW_USER_TO_CHANGE_DISPLAY_NAME';
 $skeleton_directory = '$SKELETON_DIRECTORY';
@@ -25,6 +26,10 @@ if (!empty($default_locale)) {
 
 if (!empty($force_locale)) {
     $CONFIG['force_locale'] = $force_locale;
+}
+
+if (!empty($default_phone_region)) {
+    $CONFIG['default_phone_region'] = $default_phone_region;
 }
 
 if (!empty($knowledge_base_enabled)) {

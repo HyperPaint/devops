@@ -59,9 +59,10 @@ ENV DB_TABLE_PREFIX=""
 
 # Дополнительные
 ENV DEFAULT_LANGUAGE="ru"
-ENV FORCE_LANGUAGE="false"
+ENV FORCE_LANGUAGE=""
 ENV DEFAULT_LOCALE="ru"
-ENV FORCE_LOCALE="false"
+ENV FORCE_LOCALE=""
+ENV DEFAULT_PHONE_REGION="ru"
 # Help menu item in the user menu
 ENV KNOWLEDGE_BASE_ENABLED=""
 # Allows users to change their display names on their personal pages
