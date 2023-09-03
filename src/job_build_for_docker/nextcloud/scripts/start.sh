@@ -87,22 +87,27 @@ prepare_app() {
 
     # Scan files
     log "Scanning user files"
-    php /var/www/html/occ files:scan --all
-    chown apache:apache "/var/www/html/config/config.php"
-    if [ ! $? ]; then
-      error "Can't chown /var/www/html/config/$file"
-      return 1
-    fi
-
-    chmod 754 "/var/www/html/config/config.php"
-    if [ ! $? ]; then
-      error "Can't chmod /var/www/html/config/$file"
-      return 1
+    if [ ! -f "/var/www/html/config/CAN_INSTALL" ]; then
+      sudo -u apache "php /var/www/html/occ files:scan --all > /root/scripts/scan-files.log"
+      if [ ! $? ]; then
+        error "Can't scan user files"
+        #return 1
+      fi
+    else
+      log "Skip scanning user files, app not installed"
     fi
 
     # Apache fix
     log "Apache fix"
-    rm -f /var/run/httpd/* > /dev/null 2>&1
+    for file in /var/run/httpd/*; do
+      rm -rf "$file"
+      if [ $? ]; then
+        echo "Removed $file"
+      else
+        echo "Can't remove $file"
+        return 1
+      fi
+    done
 
     ### Конец ###
     wait
