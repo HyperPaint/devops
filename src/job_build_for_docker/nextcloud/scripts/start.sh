@@ -95,6 +95,7 @@ prepare_app() {
       log "App is installed"
 
       # Удалить CAN_INSTALL
+      log "Check file CAN_INSTALL in config directory"
       if [ -f "/var/www/html/config/CAN_INSTALL" ]; then
         rm -f "/var/www/html/config/CAN_INSTALL"
         if [ $? ]; then
@@ -120,25 +121,26 @@ prepare_app() {
       fi
 
       # Создать файл-метку в каталоге данных
-      log "Check file .ocdata"
+      log "Check file .ocdata in data directory"
       if [ ! -f "/var/www/html/data/.ocdata" ]; then
         log "File .ocdata not created, creating"
         sudo -u apache touch "/var/www/html/data/.ocdata"
       fi
+
+      # Просканировать существующие файлы
+      log "Scanning user files"
+      if [ ! -f "/var/www/html/config/CAN_INSTALL" ]; then
+        sudo -u apache php "/var/www/html/occ" files:scan --all | tee /root/scripts/scanning-user-files.log
+        if [ ! $? ]; then
+          error "Can't scan user files, skipping"
+          #return 1
+        fi
+      else
+        log "Can't scan user files, app not installed, skipping"
+      fi
+
     else
       log "App is not installed"
-    fi
-
-    # Scan files
-    log "Scanning user files"
-    if [ ! -f "/var/www/html/config/CAN_INSTALL" ]; then
-      sudo -u apache php "/var/www/html/occ" files:scan --all | tee /root/scripts/scanning-user-files.log
-      if [ ! $? ]; then
-        error "Can't scan user files, skipping"
-        #return 1
-      fi
-    else
-      log "Can't scan user files, app not installed, skipping"
     fi
 
     # Apache fix
