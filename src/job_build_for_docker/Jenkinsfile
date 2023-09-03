@@ -89,6 +89,7 @@ class MyGlobal {
     static String distributiveRegex = "[\\?\\&]is_distributive=1"
     static String aHrefRegex = "<a[^<>]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.:\\/]+)\"[^<>]*>"
     static String relativeUrlRegex = "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$"
+    static String versionRegex = "((\\d+[\\-_\\.])*\\d+)"
 
     /* Глобальные переменные */
     static String artifactName = null
@@ -571,12 +572,12 @@ pipeline {
                             urlRegexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
                         }
                         String tmp = getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.appUrlListReverse, MyGlobal.buildDirectory, true)
-                        MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
+                        MyGlobal.artifactVersion = Regex.group(tmp, MyGlobal.versionRegex)
                     }
 
                     Runnable getDistributiveRunnable = {
                         String tmp = getDistributive(artifactName, url, MyGlobal.buildDirectory, true)
-                        MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
+                        MyGlobal.artifactVersion = Regex.group(tmp, MyGlobal.versionRegex)
                     }
 
                     if (isReleasesPage) {
