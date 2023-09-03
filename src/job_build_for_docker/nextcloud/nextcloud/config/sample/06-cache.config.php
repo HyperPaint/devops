@@ -1,5 +1,9 @@
 <?php
 
-$CONFIG = array (
-    'memcache.local' => '$MEMCACHE_LOCAL',
-);
+$memcache_local = '$MEMCACHE_LOCAL';
+
+$CONFIG = array();
+
+if (!empty($memcache_local)) {
+    $CONFIG['memcache.local'] = $memcache_local;
+}

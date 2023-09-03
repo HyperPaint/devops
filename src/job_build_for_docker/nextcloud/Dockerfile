@@ -41,21 +41,21 @@ EXPOSE 80
 
 # https://docs.nextcloud.com/server/latest/admin_manual/configuration_server/config_sample_php_parameters.html
 # Обязательные
-ENV INSTANCE_ID="put_your_unique_phrase_here"
-ENV PASSWORD_SALT="put_your_unique_phrase_here"
-ENV SECRET="put_your_unique_phrase_here"
+ENV INSTANCE_ID=""
+ENV PASSWORD_SALT=""
+ENV SECRET=""
 ENV TRUSTED_DOMAINS="['*']"
 ENV DATA_DIRECTORY="/var/www/html/data"
 ENV VERSION=""
 ENV INSTALLED=""
 
 # Обязательные, база данных
-ENV DB_TYPE="sqlite3"
-ENV DB_HOST="localhost"
-ENV DB_NAME="database_name_here"
-ENV DB_USER="username_here"
-ENV DB_PASSWORD="password_here"
-ENV DB_TABLE_PREFIX="oc_"
+ENV DB_TYPE=""
+ENV DB_HOST=""
+ENV DB_NAME=""
+ENV DB_USER=""
+ENV DB_PASSWORD=""
+ENV DB_TABLE_PREFIX=""
 
 # Дополнительные
 ENV DEFAULT_LANGUAGE="ru"
@@ -72,15 +72,16 @@ ENV SKELETON_DIRECTORY="/var/www/html/core/skeleton"
 ENV TEMPLATE_DIRECTORY="/var/www/html/templates"
 
 # Дополнительные, почта
-ENV MAIL_DOMAIN="example.com"
-ENV MAIL_FROM_ADDRESS="admin@example.com"
-ENV MAIL_SMTP_MODE="smtp"
-ENV MAIL_SMTP_HOST="127.0.0.1"
-ENV MAIL_SMTP_PORT="25"
-ENV MAIL_SMTP_SECURE="ssl"
-ENV MAIL_SMTP_AUTH="true"
-ENV MAIL_SMTP_NAME="username_here"
-ENV MAIL_SMTP_PASSWORD="password_here"
+ENV MAIL_DOMAIN=""
+ENV MAIL_FROM_ADDRESS=""
+ENV MAIL_SMTP_MODE=""
+ENV MAIL_SMTP_HOST=""
+ENV MAIL_SMTP_PORT=""
+ENV MAIL_SMTP_SECURE=""
+ENV MAIL_SMTP_AUTH=""
+ENV MAIL_SMTP_AUTH_TYPE=""
+ENV MAIL_SMTP_NAME=""
+ENV MAIL_SMTP_PASSWORD=""
 
 # Дополнительные, прокси
 ENV OVERWRITE_HOST=""

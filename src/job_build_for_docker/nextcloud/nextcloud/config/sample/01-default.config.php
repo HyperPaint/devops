@@ -8,14 +8,40 @@ if ($overwrite_protocol == 'https') {
     $_SERVER['HTTPS'] = 'on';
 }
 
-$CONFIG = array (
-    'instanceid' => '$INSTANCE_ID',
-    'passwordsalt' => '$PASSWORD_SALT',
-    'secret' => '$SECRET',
-    'trusted_domains' => $TRUSTED_DOMAINS,
-    'datadirectory' => '$DATA_DIRECTORY',
-    'version' => '$VERSION',
-    'installed' => $INSTALLED,
-);
+$instance_id = '$INSTANCE_ID';
+$password_salt = '$PASSWORD_SALT';
+$secret = '$SECRET';
+$trusted_domains = $TRUSTED_DOMAINS;
+$data_directory = '$DATA_DIRECTORY';
+$version = '$VERSION';
+$installed = $INSTALLED;
 
+$CONFIG = array();
 
+if (!empty($instance_id)) {
+    $CONFIG['instanceid'] = $instance_id;
+}
+
+if (!empty($password_salt)) {
+    $CONFIG['passwordsalt'] = $password_salt;
+}
+
+if (!empty($secret)) {
+    $CONFIG['secret'] = $secret;
+}
+
+if (!empty($trusted_domains)) {
+    $CONFIG['trusted_domains'] = $trusted_domains;
+}
+
+if (!empty($data_directory)) {
+    $CONFIG['datadirectory'] = $data_directory;
+}
+
+if (!empty($version)) {
+    $CONFIG['version'] = $version;
+}
+
+if (!empty($installed)) {
+    $CONFIG['installed'] = $installed;
+}
