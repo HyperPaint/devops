@@ -89,6 +89,7 @@ class MyGlobal {
     static String distributiveRegex = "[\\?\\&]is_distributive=1"
     static String aHrefRegex = "<a[^<>]*href\\s*=\\s*\"([A-Za-z0-9\\-_\\.:\\/]+)\"[^<>]*>"
     static String relativeUrlRegex = "^(\\.\\/){0,1}[A-Za-z0-9\\-_\\.]+[\\/]{0,1}\$"
+    static String versionRegex = "((\\d+[\\-_\\.])*\\d+)"
 
     /* Глобальные переменные */
     static String artifactName = null
@@ -134,12 +135,12 @@ static String getReleasesPage(String artifactName, String url, String[] urlRegex
     }
 
     /* Найти на странице с релизами все ссылки href с тегом <a> */
-    Shell.echo("Собираю ссылки со страницы")
+    Shell.echo("Формирую список ссылок")
     String releasesHtml = MyGlobal.jenkins.readFile(releasesHtmlFile)
     List<String> urlsList = Regex.groupAll(releasesHtml, MyGlobal.aHrefRegex)
 
     /* Преобразование относительных ссылок в абсолютные */
-    Shell.echo("Преобразовываю относительные ссылки в абсолютные")
+    Shell.echo("Перестраиваю ссылки")
     List<String> absoluteUrlsList = new ArrayList<>()
     for (int urlIndex = 0; urlIndex < urlsList.size(); urlIndex++) {
         String currentUrl = urlsList.get(urlIndex)
@@ -153,7 +154,7 @@ static String getReleasesPage(String artifactName, String url, String[] urlRegex
     }
 
     /* Отобрать только те ссылки, которые подходят по регулярному выражению */
-    Shell.echo("Отбираю ссылки, подходящие по регулярному выражению")
+    Shell.echo("Обрабатываю ссылки")
     /* Переиспользую список */
     urlsList.clear()
     for (int urlIndex = 0; urlIndex < absoluteUrlsList.size(); urlIndex++) {
@@ -178,7 +179,7 @@ static String getReleasesPage(String artifactName, String url, String[] urlRegex
 
     /* Инвертирование списка */
     if (urlListReverse) {
-        Shell.echo("Инвертирую список")
+        Shell.echo("Инвертирую список ссылок")
         urlsList = urlsList.reverse()
     }
 
@@ -571,12 +572,12 @@ pipeline {
                             urlRegexArray[regexIndex] = env["app_distributive_url_regex${regexIndex+1}"]
                         }
                         String tmp = getReleasesPage(artifactName, url, urlRegexArray, MyGlobal.appUrlListReverse, MyGlobal.buildDirectory, true)
-                        MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
+                        MyGlobal.artifactVersion = Regex.group(tmp, MyGlobal.versionRegex)
                     }
 
                     Runnable getDistributiveRunnable = {
                         String tmp = getDistributive(artifactName, url, MyGlobal.buildDirectory, true)
-                        MyGlobal.artifactVersion = Regex.group(tmp, "((\\d[\\-_\\.])*\\d)")
+                        MyGlobal.artifactVersion = Regex.group(tmp, MyGlobal.versionRegex)
                     }
 
                     if (isReleasesPage) {
@@ -736,7 +737,7 @@ pipeline {
                     withCredentials([string(credentialsId: MyGlobal.hostCredentials, variable: "host"), sshUserPrivateKey(credentialsId: MyGlobal.sshCredentials, keyFileVariable: "id_rsa", usernameVariable: "user")]) {
                         Docker.dockerConnect(env.host, env.user, env.id_rsa, {
                             // Сохранить последнюю версию для возврата
-                            MyGlobal.imageNameLatest = Docker.images("${MyGlobal.imageName}:latest", true).trim()
+                            MyGlobal.imageNameLatest = Docker.images(MyGlobal.imageName, true).trim()
 
                             if (MyGlobal.useCacheDocker) {
                                 Docker.build(MyGlobal.buildDirectory, MyGlobal.getArtifactFullName(), true)
@@ -745,7 +746,7 @@ pipeline {
                             }
 
                             // Сделать версию последней
-                            Docker.tag(MyGlobal.getArtifactFullName(), "${MyGlobal.imageName}:latest")
+                            Docker.tag(MyGlobal.getArtifactFullName(), MyGlobal.imageName)
                         })
                     }
 
@@ -813,18 +814,14 @@ pipeline {
                                 // Вывести лог
                                 DockerCompose.logs(MyGlobal.dockerComposeProjectDirectory)
 
-                                // Деплой не удался, не экспортировать, удалить
+                                // Деплой не удался
                                 if (!isReady) {
                                     Shell.echo("Развёртывание завершено неуспешно")
-                                    currentBuild = "UNSTABLE"
-                                    Shell.echo("Выключаю этап ${MyGlobal.exportImageDescription}")
-                                    MyGlobal.exportImage = false
-                                    Shell.echo("Включаю этап ${MyGlobal.deleteImageDescription}")
-                                    MyGlobal.deleteImage = true
+                                    currentBuild.result = "UNSTABLE"
                                 }
                             } catch (Exception e) {
                                 Shell.echo(e.toString())
-                                currentBuild = "UNSTABLE"
+                                currentBuild.result = "UNSTABLE"
                             } finally {
                                 DockerCompose.down(MyGlobal.dockerComposeProjectDirectory, true, true)
                             }
@@ -866,14 +863,14 @@ pipeline {
                             if (MyGlobal.imageNameLatest == "") {
                                 // Прошлой сборки нет, это первая сборка
                                 // Удалить latest образ
-                                Docker.removeImage("${MyGlobal.imageName}:latest")
+                                Docker.removeImage(MyGlobal.imageName)
                             } else {
                                 // Есть предпоследняя сборка
                                 // Откатить
-                                Docker.tag(MyGlobal.imageNameLatest, "${MyGlobal.imageName}:latest")
+                                Docker.tag(MyGlobal.imageNameLatest, MyGlobal.imageName)
                             }
                             // Вернуть последнюю версию
-                            Docker.removeImage("${MyGlobal.getArtifactFullName()}")
+                            Docker.removeImage(MyGlobal.getArtifactFullName())
                         })
                     }
                 }
