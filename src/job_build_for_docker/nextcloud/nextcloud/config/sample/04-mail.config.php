@@ -6,8 +6,8 @@ $mail_smtp_mode = '$MAIL_SMTP_MODE';
 $mail_smtp_host = '$MAIL_SMTP_HOST';
 $mail_smtp_port = '$MAIL_SMTP_PORT';
 $mail_smtp_secure = '$MAIL_SMTP_SECURE';
-$mail_smtp_auth = $MAIL_SMTP_AUTH;
-$mail_smtp_auth_type = $MAIL_SMTP_AUTH_TYPE;
+$mail_smtp_auth = '$MAIL_SMTP_AUTH';
+$mail_smtp_auth_type = '$MAIL_SMTP_AUTH_TYPE';
 $mail_smtp_name = '$MAIL_SMTP_NAME';
 $mail_smtp_password = '$MAIL_SMTP_PASSWORD';
 

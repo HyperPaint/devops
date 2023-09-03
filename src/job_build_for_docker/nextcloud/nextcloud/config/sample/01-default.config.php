@@ -11,10 +11,10 @@ if ($overwrite_protocol == 'https') {
 $instance_id = '$INSTANCE_ID';
 $password_salt = '$PASSWORD_SALT';
 $secret = '$SECRET';
-$trusted_domains = $TRUSTED_DOMAINS;
+$trusted_domains = '$TRUSTED_DOMAINS';
 $data_directory = '$DATA_DIRECTORY';
 $version = '$VERSION';
-$installed = $INSTALLED;
+$installed = '$INSTALLED';
 
 $CONFIG = array();
 

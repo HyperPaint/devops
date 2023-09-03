@@ -63,9 +63,9 @@ ENV FORCE_LANGUAGE="false"
 ENV DEFAULT_LOCALE="ru"
 ENV FORCE_LOCALE="false"
 # Help menu item in the user menu
-ENV KNOWLEDGE_BASE_ENABLED="true"
+ENV KNOWLEDGE_BASE_ENABLED=""
 # Allows users to change their display names on their personal pages
-ENV ALLOW_USER_TO_CHANGE_DISPLAY_NAME="true"
+ENV ALLOW_USER_TO_CHANGE_DISPLAY_NAME=""
 # The directory where the skeleton files are located
 ENV SKELETON_DIRECTORY="/var/www/html/core/skeleton"
 # The directory where the template files are located
