@@ -1,7 +1,7 @@
 #!/bin/sh
 
 for file in nextcloud/themes/*; do
-  if [ ! "$file" = "index.php" ]; then
+  if [ ! "$file" = "nextcloud/themes/index.php" ]; then
     rm -rf "$file"
     if [ $? ]; then
       echo "Removed $file"
@@ -13,7 +13,7 @@ for file in nextcloud/themes/*; do
 done
 
 for file in nextcloud/apps/*; do
-  if [ ! "$file" = "index.php" ]; then
+  if [ ! "$file" = "nextcloud/apps/index.php" ]; then
     rm -rf "$file"
     if [ $? ]; then
       echo "Removed $file"
