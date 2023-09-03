@@ -13,6 +13,9 @@ RUN yum -y install php php-zip php-dom php-xml php-mbstring php-gd php-mysql php
 # Программы
 RUN yum -y install httpd wget curl openssl gettext
 
+# Специфичное
+RUN yum -y install sudo
+
 # Настроить php
 RUN sed -i 's/memory_limit = 128M/memory_limit = 512M/g' /etc/php.ini && \
     sed -i 's/post_max_size = 8M/post_max_size = 10G/g' /etc/php.ini && \
