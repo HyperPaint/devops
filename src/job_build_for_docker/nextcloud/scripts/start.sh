@@ -102,9 +102,9 @@ prepare_app() {
     for file in /var/run/httpd/*; do
       rm -rf "$file"
       if [ $? ]; then
-        echo "Removed $file"
+        log "Removed $file"
       else
-        echo "Can't remove $file"
+        log "Can't remove $file"
         return 1
       fi
     done
