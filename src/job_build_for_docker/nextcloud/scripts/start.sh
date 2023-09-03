@@ -105,8 +105,19 @@ prepare_app() {
         fi
       fi
 
+      # Создать каталог данных
+      log "Check data directory"
+      if [ -d "/var/www/html/data/" ]; then
+        log "Data directory not created, creating"
+        sudo -u apache mkdir "/var/www/html/data/"
+      fi
+
       # Создать файл-метку в каталоге данных
-      sudo -u apache touch "/var/www/html/data/.ocdata"
+      log "Check file .ocdata"
+      if [ -f "/var/www/html/data/.ocdata" ]; then
+        log "File .ocdata not created, creating"
+        sudo -u apache touch "/var/www/html/data/.ocdata"
+      fi
     else
       log "App is not installed"
     fi
@@ -116,11 +127,11 @@ prepare_app() {
     if [ ! -f "/var/www/html/config/CAN_INSTALL" ]; then
       sudo -u apache php "/var/www/html/occ" files:scan --all | tee /root/scripts/scanning-user-files.log
       if [ ! $? ]; then
-        error "Can't scan user files"
+        error "Can't scan user files, skipping"
         #return 1
       fi
     else
-      log "Skip scanning user files, app not installed"
+      log "Can't scan user files, app not installed, skipping"
     fi
 
     # Apache fix
