@@ -88,15 +88,19 @@ prepare_app() {
     done
 
     # Installed
+    log "Check app is installed"
     if [ "$INSTALLED" = "true" ]; then
       log "App is installed"
-      rm -f "/var/www/html/config/CAN_INSTALL"
-      if [ $? ]; then
-        log "Removed /var/www/html/config/CAN_INSTALL"
-      else
-        log "Can't remove /var/www/html/config/CAN_INSTALL"
-        return 1
+      if [ -f "/var/www/html/config/CAN_INSTALL" ]; then
+        rm -f "/var/www/html/config/CAN_INSTALL"
+        if [ $? ]; then
+          log "Removed /var/www/html/config/CAN_INSTALL"
+        else
+          log "Can't remove /var/www/html/config/CAN_INSTALL"
+          return 1
+        fi
       fi
+      log "App is not installed"
     fi
 
     # Scan files
