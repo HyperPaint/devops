@@ -112,6 +112,13 @@ prepare_app() {
         sudo -u apache mkdir "/var/www/html/data/"
       fi
 
+      # Ограничить доступ к каталогу данных
+      log "Check file .htaccess in data directory"
+      if [ ! -f "/var/www/html/data/.htaccess" ]; then
+        log "File .htaccess not created, copying from /var/www/html/config/.htaccess to /var/www/html/data/.htaccess"
+        sudo -u apache cp "/var/www/html/config/.htaccess" "/var/www/html/data/.htaccess"
+      fi
+
       # Создать файл-метку в каталоге данных
       log "Check file .ocdata"
       if [ ! -f "/var/www/html/data/.ocdata" ]; then
