@@ -87,10 +87,12 @@ prepare_app() {
       fi
     done
 
-    # Installed
+    # Приложение установлено
     log "Check app is installed"
     if [ "$INSTALLED" = "true" ]; then
       log "App is installed"
+
+      # Удалить CAN_INSTALL
       if [ -f "/var/www/html/config/CAN_INSTALL" ]; then
         rm -f "/var/www/html/config/CAN_INSTALL"
         if [ $? ]; then
@@ -100,13 +102,17 @@ prepare_app() {
           return 1
         fi
       fi
+
+      # Создать файл-метку в каталоге данных
+      sudo -u apache touch "/var/www/html/data/.ocdata"
+
       log "App is not installed"
     fi
 
     # Scan files
     log "Scanning user files"
     if [ ! -f "/var/www/html/config/CAN_INSTALL" ]; then
-      sudo -u apache php /var/www/html/occ files:scan --all | tee /root/scripts/scanning-user-files.log
+      sudo -u apache php "/var/www/html/occ" files:scan --all | tee /root/scripts/scanning-user-files.log
       if [ ! $? ]; then
         error "Can't scan user files"
         #return 1
