@@ -107,14 +107,14 @@ prepare_app() {
 
       # Создать каталог данных
       log "Check data directory"
-      if [ -d "/var/www/html/data/" ]; then
+      if [ ! -d "/var/www/html/data/" ]; then
         log "Data directory not created, creating"
         sudo -u apache mkdir "/var/www/html/data/"
       fi
 
       # Создать файл-метку в каталоге данных
       log "Check file .ocdata"
-      if [ -f "/var/www/html/data/.ocdata" ]; then
+      if [ ! -f "/var/www/html/data/.ocdata" ]; then
         log "File .ocdata not created, creating"
         sudo -u apache touch "/var/www/html/data/.ocdata"
       fi
