@@ -1,17 +1,25 @@
 #!/bin/sh
 
-cd "wordpress/wp-content/themes" || exit 1
-for file in *; do
-  if [ ! "$file" = "index.php" ]; then
-    rm -vrf "$file"
+for file in wordpress/wp-content/themes/*; do
+  if [ ! "$file" = "wordpress/wp-content/themes/index.php" ]; then
+    rm -rf "$file"
+    if [ $? ]; then
+      echo "Removed $file"
+    else
+      echo "Can't remove $file"
+      exit 1
+    fi
   fi
 done
 
-cd "../../.." || exit 1
-
-cd "wordpress/wp-content/plugins" || exit 1
-for file in *; do
-  if [ ! "$file" = "index.php" ]; then
-    rm -vrf "$file"
+for file in wordpress/wp-content/plugins/*; do
+  if [ ! "$file" = "wordpress/wp-content/plugins/index.php" ]; then
+    rm -rf "$file"
+    if [ $? ]; then
+      echo "Removed $file"
+    else
+      echo "Can't remove $file"
+      exit 1
+    fi
   fi
 done

@@ -46,10 +46,34 @@ prepare_app() {
     > "/var/www/html/wp-config.php" && \
     chown apache:apache "/var/www/html/wp-config.php" && \
     chmod 754 "/var/www/html/wp-config.php"
+  if [ $? ]; then
+    chown apache:apache "/var/www/html/wp-config.php"
+    if [ ! $? ]; then
+      error "Can't chown /var/www/html/wp-config.php"
+      return 1
+    fi
+
+    chmod 754 "/var/www/html/wp-config.php"
+    if [ ! $? ]; then
+      error "Can't chmod /var/www/html/wp-config.php"
+      return 1
+    fi
+  else
+    error "Can't compile '/var/www/html/wp-config.php' from '/var/www/html/wp-config-sample.php'"
+    return 1
+  fi
 
   # Apache fix
   log "Apache fix"
-  rm -f /var/run/httpd/* > /dev/null 2>&1
+  for file in /var/run/httpd/*; do
+    rm -rf "$file"
+    if [ $? ]; then
+      log "Removed $file"
+    else
+      log "Can't remove $file"
+      return 1
+    fi
+  done
 
   ### Конец ###
   wait
